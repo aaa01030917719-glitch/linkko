@@ -34,19 +34,31 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#([0-9]+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+}
+
 function parseOgTags(html: string): LinkPreview {
   const getMeta = (property: string): string | null => {
     const match =
       html.match(new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`, "i")) ||
       html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`, "i"));
-    return match?.[1] ?? null;
+    const value = match?.[1] ?? null;
+    return value ? decodeHtmlEntities(value) : null;
   };
 
   const getTitle = (): string | null => {
     const og = getMeta("og:title");
     if (og) return og;
     const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    return match?.[1]?.trim() ?? null;
+    const value = match?.[1]?.trim() ?? null;
+    return value ? decodeHtmlEntities(value) : null;
   };
 
   return {
