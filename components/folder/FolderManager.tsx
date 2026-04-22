@@ -6,7 +6,7 @@ import type { Folder } from "@/types";
 
 interface FolderManagerProps {
   folders: Folder[];
-  onCreate: (name: string) => Promise<void>;
+  onCreate: (name: string) => Promise<Folder>;
   onRename: (id: string, name: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
