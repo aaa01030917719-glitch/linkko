@@ -41,11 +41,9 @@ export default function RecentLinks({ links, loading }: RecentLinksProps) {
       {links.map((link) => {
         const title = link.custom_title || link.preview_title || extractDomain(link.url);
         return (
-          <a
+          <Link
             key={link.id}
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/links/${link.id}`}
             className="flex gap-3 bg-white rounded-2xl border border-gray-100 p-3 hover:bg-gray-50 active:bg-gray-100 transition shadow-sm"
           >
             {/* 썸네일 */}
@@ -69,7 +67,7 @@ export default function RecentLinks({ links, loading }: RecentLinksProps) {
               <p className="text-xs text-gray-400">{extractDomain(link.url)}</p>
               <p className="text-xs text-gray-300">{timeAgo(link.created_at)}</p>
             </div>
-          </a>
+          </Link>
         );
       })}
 

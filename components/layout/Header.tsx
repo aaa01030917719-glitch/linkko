@@ -1,10 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
+  const showBack = !pathname.startsWith("/dashboard");
 
   async function handleLogout() {
     const supabase = createClient();
@@ -17,11 +19,15 @@ export default function Header() {
     <header className="sticky top-0 z-10 bg-white border-b border-gray-100">
       <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-primary-500 flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 28 28" fill="none">
-              <path d="M8 14h12M14 8l6 6-6 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
+          {showBack && (
+            <button
+              onClick={() => router.back()}
+              className="p-1.5 -ml-1.5 mr-1 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+              aria-label="뒤로가기"
+            >
+              <BackIcon />
+            </button>
+          )}
           <span className="text-base font-bold text-gray-900 tracking-tight">링코</span>
         </div>
         <button
@@ -32,5 +38,23 @@ export default function Header() {
         </button>
       </div>
     </header>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
   );
 }

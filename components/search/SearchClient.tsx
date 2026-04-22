@@ -65,10 +65,6 @@ export default function SearchClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, folderFilter]);
 
-  function toggleFolder(id: string | null) {
-    setFolderFilter((prev) => (prev === id ? undefined : id));
-  }
-
   async function handleConfirmDelete() {
     if (!pendingDeleteId) return;
     try {
@@ -124,41 +120,34 @@ export default function SearchClient() {
           </div>
         </header>
 
-        {/* 폴더 태그 */}
-        {folders.length > 0 && (
-          <section>
-            <p className="text-xs font-semibold text-gray-400 mb-2.5 uppercase tracking-wide">
-              자주 찾는 폴더
-            </p>
-            <div className="flex gap-2 flex-wrap">
-              {folders.map((folder) => (
-                <button
-                  key={folder.id}
-                  onClick={() => toggleFolder(folder.id)}
-                  className={cn(
-                    "rounded-full px-3.5 py-1.5 text-xs font-medium transition",
-                    folderFilter === folder.id
-                      ? "bg-gray-300 text-gray-800"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  )}
-                >
-                  {folder.name}
-                </button>
-              ))}
-              <button
-                onClick={() => toggleFolder(null)}
-                className={cn(
-                  "rounded-full px-3.5 py-1.5 text-xs font-medium transition",
-                  folderFilter === null
-                    ? "bg-gray-300 text-gray-800"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                )}
-              >
-                미분류
-              </button>
-            </div>
-          </section>
-        )}
+        {/* 폴더 탭 */}
+        <div className="flex overflow-x-auto -mx-4 px-4 border-b border-gray-100 [&::-webkit-scrollbar]:hidden">
+          <button
+            onClick={() => setFolderFilter(undefined)}
+            className={cn(
+              "shrink-0 px-4 py-2.5 text-sm border-b-2 transition -mb-px",
+              folderFilter === undefined
+                ? "border-primary-500 text-primary-500 font-bold"
+                : "border-transparent text-gray-300 font-medium hover:text-gray-500"
+            )}
+          >
+            전체
+          </button>
+          {folders.map((folder) => (
+            <button
+              key={folder.id}
+              onClick={() => setFolderFilter(folder.id)}
+              className={cn(
+                "shrink-0 px-4 py-2.5 text-sm border-b-2 transition -mb-px",
+                folderFilter === folder.id
+                  ? "border-primary-500 text-primary-500 font-bold"
+                  : "border-transparent text-gray-300 font-medium hover:text-gray-500"
+              )}
+            >
+              {folder.name}
+            </button>
+          ))}
+        </div>
 
         {/* 로딩 skeleton */}
         {loading && (
@@ -183,7 +172,7 @@ export default function SearchClient() {
               {results.length}개 결과
               {folderFilter !== undefined && (
                 <span className="ml-1 text-gray-300">
-                  · {folderFilter === null ? "미분류" : folders.find((f) => f.id === folderFilter)?.name}
+                  · {folders.find((f) => f.id === folderFilter)?.name}
                 </span>
               )}
             </p>

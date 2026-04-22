@@ -42,7 +42,13 @@ export function useLinks(folderId?: string | null) {
   }, []);
 
   async function addLink(payload: Partial<Link>) {
-    const { data, error } = await supabase.from("links").insert(payload).select().single();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("로그인이 필요합니다.");
+    const { data, error } = await supabase
+      .from("links")
+      .insert({ ...payload, user_id: user.id })
+      .select()
+      .single();
     if (error) throw error;
     setLinks((prev) => [data as Link, ...prev]);
     return data as Link;
