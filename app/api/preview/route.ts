@@ -1,101 +1,223 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { LinkPreview } from "@/types";
 
+const PREVIEW_FETCH_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "ko,en;q=0.9",
+};
+
+const BLOCKED_IMAGE_HOSTS = [
+  "instagram.com",
+  "cdninstagram.com",
+  "fbcdn.net",
+  "facebook.com",
+];
+
+const NAMED_HTML_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+};
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const url = searchParams.get("url");
+  const rawUrl = searchParams.get("url");
 
-  if (!url) {
-    return NextResponse.json({ error: "url 파라미터가 필요합니다." }, { status: 400 });
+  if (!rawUrl) {
+    return NextResponse.json(
+      { error: "Missing url query parameter." },
+      { status: 400 }
+    );
+  }
+
+  const targetUrl = parseHttpUrl(rawUrl);
+
+  if (!targetUrl) {
+    return NextResponse.json(
+      { error: "Only http and https URLs are supported." },
+      { status: 400 }
+    );
   }
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "ko,en;q=0.9",
-      },
+    const response = await fetch(targetUrl.href, {
+      headers: PREVIEW_FETCH_HEADERS,
       next: { revalidate: 3600 },
     });
 
-    if (!res.ok) {
-      return NextResponse.json({ error: "페이지를 가져올 수 없습니다." }, { status: 502 });
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: "Failed to fetch the requested page." },
+        { status: 502 }
+      );
     }
 
-    const html = await res.text();
-    return NextResponse.json(parseOgTags(html, url));
+    const html = await response.text();
+    return NextResponse.json(parseLinkPreview(html, targetUrl.href));
   } catch {
-    return NextResponse.json({ error: "미리보기 생성에 실패했습니다." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create a link preview." },
+      { status: 500 }
+    );
   }
 }
 
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#([0-9]+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)));
+function parseLinkPreview(html: string, requestUrl: string): LinkPreview {
+  const meta = parseMetaTags(html);
+  const imageSource = meta["og:image"] ?? meta["twitter:image"] ?? null;
+  const resolvedImage = imageSource
+    ? resolveUrl(decodeHtmlEntities(imageSource), requestUrl)
+    : null;
+
+  return {
+    title: normalizePreviewText(
+      meta["og:title"] ?? meta["twitter:title"] ?? extractTitle(html)
+    ),
+    description: normalizePreviewText(
+      meta["og:description"] ??
+        meta["twitter:description"] ??
+        meta["description"] ??
+        null
+    ),
+    image:
+      resolvedImage && !shouldBlockPreviewImage(resolvedImage, requestUrl)
+        ? resolvedImage
+        : null,
+    site_name: normalizePreviewText(meta["og:site_name"]),
+  };
 }
 
-function parseOgTags(html: string, requestUrl: string): LinkPreview {
-  // 모든 meta 태그를 순회해 property/name → content 맵 생성
+function parseMetaTags(html: string): Record<string, string> {
   const metaMap: Record<string, string> = {};
-  const metaRegex = /<meta\s+([^>]+?)(?:\s*\/)?>/gi;
-  let m: RegExpExecArray | null;
+  const metaTagPattern = /<meta\b[^>]*>/gi;
+  let match: RegExpExecArray | null;
 
-  while ((m = metaRegex.exec(html)) !== null) {
-    const attrs = m[1];
-    const key =
-      attrValue(attrs, "property") ?? attrValue(attrs, "name");
-    const content = attrValue(attrs, "content");
+  while ((match = metaTagPattern.exec(html)) !== null) {
+    const attributes = extractAttributes(match[0]);
+    const key = attributes.property ?? attributes.name;
+    const content = attributes.content;
+
     if (key && content) {
       metaMap[key.toLowerCase()] = content;
     }
   }
 
-  const decode = (v: string | null | undefined) =>
-    v ? decodeHtmlEntities(v) : null;
-
-  // title: og:title → twitter:title → <title>
-  const getTitle = (): string | null => {
-    const raw =
-      metaMap["og:title"] ??
-      metaMap["twitter:title"] ??
-      html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ??
-      null;
-    return decode(raw);
-  };
-
-  // image: og:image → twitter:image, 이미지를 차단하는 도메인은 null 반환
-  const getImage = (): string | null => {
-    const raw = metaMap["og:image"] ?? metaMap["twitter:image"] ?? null;
-    if (!raw) return null;
-    try {
-      const imageUrl = new URL(raw, requestUrl).href;
-      const blocked = ["instagram.com", "fbcdn.net", "facebook.com"];
-      if (blocked.some((d) => imageUrl.includes(d))) return null;
-      return imageUrl;
-    } catch {
-      return null;
-    }
-  };
-
-  return {
-    title: getTitle(),
-    description: decode(
-      metaMap["og:description"] ?? metaMap["twitter:description"]
-    ),
-    image: getImage(),
-    site_name: decode(metaMap["og:site_name"]),
-  };
+  return metaMap;
 }
 
-// <meta> 속성 문자열에서 특정 속성값 추출 (큰따옴표/작은따옴표 모두 처리)
-function attrValue(attrs: string, name: string): string | null {
-  const match = attrs.match(new RegExp(`${name}=["']([^"']*?)["']`, "i"));
-  return match?.[1] ?? null;
+function extractAttributes(tag: string): Record<string, string> {
+  const attributes: Record<string, string> = {};
+  const attributePattern =
+    /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = attributePattern.exec(tag)) !== null) {
+    const [, name, doubleQuoted, singleQuoted, unquoted] = match;
+    attributes[name.toLowerCase()] =
+      doubleQuoted ?? singleQuoted ?? unquoted ?? "";
+  }
+
+  return attributes;
+}
+
+function extractTitle(html: string): string | null {
+  const titleMatch = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+  return titleMatch?.[1] ?? null;
+}
+
+function normalizePreviewText(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const decoded = decodeHtmlEntities(value)
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return decoded || null;
+}
+
+function decodeHtmlEntities(value: string): string {
+  let decoded = value;
+
+  for (let i = 0; i < 3; i += 1) {
+    const next = decoded
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
+        decodeCodePoint(hex, 16, `&#x${hex};`)
+      )
+      .replace(/&#([0-9]+);/g, (_, decimal) =>
+        decodeCodePoint(decimal, 10, `&#${decimal};`)
+      )
+      .replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (entity, name) => {
+        return NAMED_HTML_ENTITIES[name.toLowerCase()] ?? entity;
+      });
+
+    if (next === decoded) {
+      break;
+    }
+
+    decoded = next;
+  }
+
+  return decoded;
+}
+
+function decodeCodePoint(
+  value: string,
+  radix: number,
+  fallback: string
+): string {
+  const codePoint = Number.parseInt(value, radix);
+
+  if (!Number.isFinite(codePoint) || codePoint < 0) {
+    return fallback;
+  }
+
+  try {
+    return String.fromCodePoint(codePoint);
+  } catch {
+    return fallback;
+  }
+}
+
+function resolveUrl(value: string, baseUrl: string): string | null {
+  try {
+    return new URL(value, baseUrl).href;
+  } catch {
+    return null;
+  }
+}
+
+function shouldBlockPreviewImage(imageUrl: string, pageUrl: string): boolean {
+  const hostnames = [getHostname(imageUrl), getHostname(pageUrl)].filter(
+    (hostname): hostname is string => Boolean(hostname)
+  );
+
+  return hostnames.some((hostname) =>
+    BLOCKED_IMAGE_HOSTS.some(
+      (blockedHost) =>
+        hostname === blockedHost || hostname.endsWith(`.${blockedHost}`)
+    )
+  );
+}
+
+function getHostname(value: string): string | null {
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function parseHttpUrl(value: string): URL | null {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
 }
