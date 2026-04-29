@@ -1,3 +1,4 @@
+import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import Highlight from "@/components/search/Highlight";
 import { extractDomain } from "@/lib/utils/url";
 import type { Folder, Link } from "@/types";
@@ -30,19 +31,13 @@ export default function SearchResultCard({
         className="flex gap-3 p-3.5 hover:bg-gray-50 active:bg-gray-100 transition"
       >
         {/* 썸네일 */}
-        <div className="w-[60px] h-[60px] rounded-xl bg-gray-100 shrink-0 overflow-hidden">
-          {link.preview_image ? (
-            <img
-              src={link.preview_image}
-              alt={title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-300">
-              <LinkPlaceholderIcon />
-            </div>
-          )}
-        </div>
+        <PreviewThumbnail
+          image={link.preview_image}
+          title={title}
+          siteName={link.preview_site_name}
+          url={link.url}
+          className="w-[60px] h-[60px] rounded-xl"
+        />
 
         {/* 텍스트 */}
         <div className="flex-1 min-w-0 space-y-1">
@@ -91,15 +86,6 @@ export default function SearchResultCard({
         </button>
       </div>
     </div>
-  );
-}
-
-function LinkPlaceholderIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
-    </svg>
   );
 }
 

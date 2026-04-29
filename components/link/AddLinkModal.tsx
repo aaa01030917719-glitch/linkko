@@ -1,5 +1,6 @@
 "use client";
 
+import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import { useState, useRef, useEffect } from "react";
 import { isValidUrl } from "@/lib/utils/url";
 import type { Folder, Link, LinkPreview } from "@/types";
@@ -158,11 +159,13 @@ export default function AddLinkModal({ open, onClose, folders, onAdd }: AddLinkM
               {/* 미리보기 카드 */}
               {(preview?.image || preview?.title) && (
                 <div className="flex gap-3 bg-gray-50 rounded-2xl p-3 mb-4 border border-gray-100">
-                  {preview.image && (
-                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-gray-200">
-                      <img src={preview.image} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  )}
+                  <PreviewThumbnail
+                    image={preview.image}
+                    title={preview.title ?? "링크 미리보기"}
+                    siteName={preview.site_name}
+                    url={url}
+                    className="w-14 h-14 rounded-xl"
+                  />
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">
                       {preview.title}

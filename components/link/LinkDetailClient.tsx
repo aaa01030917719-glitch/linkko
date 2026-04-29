@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import { extractDomain } from "@/lib/utils/url";
 import { useToast } from "@/hooks/useToast";
 import EditLinkModal from "@/components/link/EditLinkModal";
@@ -139,11 +140,13 @@ export default function LinkDetailClient({ id }: Props) {
 
       {/* 메인 카드 */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-3">
-        {link.preview_image && (
-          <div className="w-full h-48 bg-gray-100 overflow-hidden">
-            <img src={link.preview_image} alt={title} className="w-full h-full object-cover" />
-          </div>
-        )}
+        <PreviewThumbnail
+          image={link.preview_image}
+          title={title}
+          siteName={link.preview_site_name}
+          url={link.url}
+          className="w-full h-48"
+        />
         <div className="p-5 space-y-3.5">
           <h1 className="text-lg font-bold text-gray-900 leading-snug">{title}</h1>
           <div className="flex items-center gap-2 min-w-0">

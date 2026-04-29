@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       snippet: toLogSnippet(html),
     });
 
-    const preview = parseLinkPreview(html, targetUrl.href);
+    const preview = parseLinkPreview(html, targetUrl.href, response.url);
 
     console.log(`${LOG_PREFIX} preview result`, {
       url: targetUrl.href,
@@ -101,7 +101,23 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function parseLinkPreview(html: string, requestUrl: string): LinkPreview {
+function parseLinkPreview(
+  html: string,
+  requestUrl: string,
+  finalUrl: string
+): LinkPreview {
+  if (isInstagramLoginWall(requestUrl, finalUrl, html)) {
+    const preview = createInstagramLimitedPreview();
+
+    console.log(`${LOG_PREFIX} instagram limited preview`, {
+      url: requestUrl,
+      finalUrl,
+      preview,
+    });
+
+    return preview;
+  }
+
   const meta = parseMetaTags(html);
   const titleSource = selectFirst([
     { key: "og:title", value: meta["og:title"] },
@@ -132,6 +148,7 @@ function parseLinkPreview(html: string, requestUrl: string): LinkPreview {
 
   console.log(`${LOG_PREFIX} parsed meta sources`, {
     url: requestUrl,
+    finalUrl,
     ogTitle: normalizePreviewText(meta["og:title"]),
     twitterTitle: normalizePreviewText(meta["twitter:title"]),
     titleTag: normalizePreviewText(extractTitle(html)),
@@ -146,6 +163,15 @@ function parseLinkPreview(html: string, requestUrl: string): LinkPreview {
   });
 
   return preview;
+}
+
+function createInstagramLimitedPreview(): LinkPreview {
+  return {
+    title: "Instagram 링크",
+    description: "Instagram 게시물은 미리보기가 제한될 수 있어요.",
+    image: null,
+    site_name: "Instagram",
+  };
 }
 
 function parseMetaTags(html: string): Record<string, string> {
@@ -280,6 +306,42 @@ function parseHttpUrl(value: string): URL | null {
   try {
     const url = new URL(value);
     return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function isInstagramLoginWall(
+  requestUrl: string,
+  finalUrl: string,
+  html: string
+): boolean {
+  const requestHostname = getHostname(requestUrl);
+  const finalPathname = getPathname(finalUrl);
+
+  if (
+    !requestHostname ||
+    (requestHostname !== "instagram.com" &&
+      !requestHostname.endsWith(".instagram.com"))
+  ) {
+    return false;
+  }
+
+  if (finalPathname?.startsWith("/accounts/login")) {
+    return true;
+  }
+
+  return (
+    html.includes("https://www.instagram.com/accounts/login/") ||
+    html.includes("instagram.com/accounts/login") ||
+    html.includes("로그인하여") ||
+    html.includes("Log in to Instagram")
+  );
+}
+
+function getPathname(value: string): string | null {
+  try {
+    return new URL(value).pathname;
   } catch {
     return null;
   }
