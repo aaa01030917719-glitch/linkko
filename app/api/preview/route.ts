@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { LinkPreview } from "@/types";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const PREVIEW_FETCH_HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)",
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -23,6 +26,9 @@ const NAMED_HTML_ENTITIES: Record<string, string> = {
   nbsp: " ",
 };
 
+const LOG_PREFIX = "[preview-api]";
+const HTML_LOG_SNIPPET_LENGTH = 500;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const rawUrl = searchParams.get("url");
@@ -44,9 +50,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log(`${LOG_PREFIX} fetching target`, { url: targetUrl.href });
+
     const response = await fetch(targetUrl.href, {
       headers: PREVIEW_FETCH_HEADERS,
-      next: { revalidate: 3600 },
+      cache: "no-store",
+    });
+
+    const contentType = response.headers.get("content-type");
+
+    console.log(`${LOG_PREFIX} fetch response`, {
+      url: targetUrl.href,
+      finalUrl: response.url,
+      status: response.status,
+      contentType,
     });
 
     if (!response.ok) {
@@ -57,8 +74,26 @@ export async function GET(request: NextRequest) {
     }
 
     const html = await response.text();
-    return NextResponse.json(parseLinkPreview(html, targetUrl.href));
+    console.log(`${LOG_PREFIX} html snippet`, {
+      url: targetUrl.href,
+      snippet: toLogSnippet(html),
+    });
+
+    const preview = parseLinkPreview(html, targetUrl.href);
+
+    console.log(`${LOG_PREFIX} preview result`, {
+      url: targetUrl.href,
+      preview,
+    });
+
+    return NextResponse.json(preview, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
   } catch {
+    console.error(`${LOG_PREFIX} request failed`, { url: targetUrl.href });
+
     return NextResponse.json(
       { error: "Failed to create a link preview." },
       { status: 500 }
@@ -68,27 +103,49 @@ export async function GET(request: NextRequest) {
 
 function parseLinkPreview(html: string, requestUrl: string): LinkPreview {
   const meta = parseMetaTags(html);
+  const titleSource = selectFirst([
+    { key: "og:title", value: meta["og:title"] },
+    { key: "twitter:title", value: meta["twitter:title"] },
+    { key: "title", value: extractTitle(html) },
+  ]);
+  const descriptionSource = selectFirst([
+    { key: "og:description", value: meta["og:description"] },
+    { key: "twitter:description", value: meta["twitter:description"] },
+    { key: "description", value: meta["description"] },
+  ]);
+  const siteNameSource = selectFirst([
+    { key: "og:site_name", value: meta["og:site_name"] },
+  ]);
   const imageSource = meta["og:image"] ?? meta["twitter:image"] ?? null;
   const resolvedImage = imageSource
     ? resolveUrl(decodeHtmlEntities(imageSource), requestUrl)
     : null;
-
-  return {
-    title: normalizePreviewText(
-      meta["og:title"] ?? meta["twitter:title"] ?? extractTitle(html)
-    ),
-    description: normalizePreviewText(
-      meta["og:description"] ??
-        meta["twitter:description"] ??
-        meta["description"] ??
-        null
-    ),
+  const preview = {
+    title: normalizePreviewText(titleSource?.value ?? null),
+    description: normalizePreviewText(descriptionSource?.value ?? null),
     image:
       resolvedImage && !shouldBlockPreviewImage(resolvedImage, requestUrl)
         ? resolvedImage
         : null,
-    site_name: normalizePreviewText(meta["og:site_name"]),
+    site_name: normalizePreviewText(siteNameSource?.value ?? null),
   };
+
+  console.log(`${LOG_PREFIX} parsed meta sources`, {
+    url: requestUrl,
+    ogTitle: normalizePreviewText(meta["og:title"]),
+    twitterTitle: normalizePreviewText(meta["twitter:title"]),
+    titleTag: normalizePreviewText(extractTitle(html)),
+    selectedTitleSource: titleSource?.key ?? null,
+    ogDescription: normalizePreviewText(meta["og:description"]),
+    twitterDescription: normalizePreviewText(meta["twitter:description"]),
+    metaDescription: normalizePreviewText(meta["description"]),
+    ogSiteName: normalizePreviewText(meta["og:site_name"]),
+    ogImage: imageSource,
+    resolvedImage,
+    imageBlocked: Boolean(resolvedImage && preview.image === null),
+  });
+
+  return preview;
 }
 
 function parseMetaTags(html: string): Record<string, string> {
@@ -139,6 +196,12 @@ function normalizePreviewText(value: string | null | undefined): string | null {
     .trim();
 
   return decoded || null;
+}
+
+function selectFirst(
+  candidates: Array<{ key: string; value: string | null | undefined }>
+) {
+  return candidates.find((candidate) => normalizePreviewText(candidate.value));
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -220,4 +283,10 @@ function parseHttpUrl(value: string): URL | null {
   } catch {
     return null;
   }
+}
+
+function toLogSnippet(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .slice(0, HTML_LOG_SNIPPET_LENGTH);
 }
