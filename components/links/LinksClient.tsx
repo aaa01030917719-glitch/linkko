@@ -27,7 +27,12 @@ export default function LinksClient() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const { toast, showToast } = useToast();
 
-  const { folders, error: foldersError, refetch: refetchFolders } = useFolders();
+  const {
+    folders,
+    error: foldersError,
+    createFolder,
+    refetch: refetchFolders,
+  } = useFolders();
   const { links, loading, error: linksError, addLink, updateLink, deleteLink, refetch: refetchLinks } = useLinks(selectedFolder);
 
   async function handleAdd(payload: Partial<Link>) {
@@ -144,7 +149,13 @@ export default function LinksClient() {
         </div>
       </div>
 
-      <AddLinkModal open={addOpen} onClose={() => setAddOpen(false)} folders={folders} onAdd={handleAdd} />
+      <AddLinkModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        folders={folders}
+        onAdd={handleAdd}
+        onCreateFolder={createFolder}
+      />
       <EditLinkModal link={editingLink} folders={folders} onClose={() => setEditingLink(null)} onSave={handleUpdate} />
       <ConfirmModal
         open={pendingDeleteId !== null}

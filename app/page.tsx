@@ -1,15 +1,31 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+"use client";
 
-export default async function RootPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import AuthLoadingScreen from "@/components/auth/AuthLoadingScreen";
+import { useAuth } from "@/hooks/useAuth";
 
-  if (user) {
-    redirect("/dashboard");
-  } else {
-    redirect("/login");
-  }
+export default function RootPage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    router.replace(user ? "/dashboard" : "/login");
+  }, [loading, router, user]);
+
+  return (
+    <AuthLoadingScreen
+      message={
+        loading
+          ? "로그인 상태를 확인하고 있어요."
+          : user
+            ? "대시보드로 이동하고 있어요."
+            : "로그인 페이지로 이동하고 있어요."
+      }
+    />
+  );
 }

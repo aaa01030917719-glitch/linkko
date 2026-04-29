@@ -120,6 +120,7 @@ export default function DashboardClient() {
         onClose={() => setAddOpen(false)}
         folders={folders}
         onAdd={handleAddLink}
+        onCreateFolder={createFolder}
       />
       {toast && <Toast message={toast} />}
     </>

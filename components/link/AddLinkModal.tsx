@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import PreviewThumbnail from "@/components/link/PreviewThumbnail";
-import { useState, useRef, useEffect } from "react";
 import { isValidUrl } from "@/lib/utils/url";
 import type { Folder, Link, LinkPreview } from "@/types";
 
@@ -10,168 +10,258 @@ interface AddLinkModalProps {
   onClose: () => void;
   folders: Folder[];
   onAdd: (payload: Partial<Link>) => Promise<void>;
+  onCreateFolder: (name: string) => Promise<Folder>;
 }
 
 type Step = "url" | "detail";
 
-export default function AddLinkModal({ open, onClose, folders, onAdd }: AddLinkModalProps) {
+export default function AddLinkModal({
+  open,
+  onClose,
+  folders,
+  onAdd,
+  onCreateFolder,
+}: AddLinkModalProps) {
   const [step, setStep] = useState<Step>("url");
   const [url, setUrl] = useState("");
   const [customTitle, setCustomTitle] = useState("");
   const [memo, setMemo] = useState("");
   const [folderId, setFolderId] = useState("");
   const [preview, setPreview] = useState<LinkPreview | null>(null);
-  const [fetching, setFetching] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [availableFolders, setAvailableFolders] = useState<Folder[]>(folders);
+  const [fetchingPreview, setFetchingPreview] = useState(false);
+  const [savingLink, setSavingLink] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [showFolderComposer, setShowFolderComposer] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const [urlError, setUrlError] = useState("");
+  const [folderError, setFolderError] = useState("");
 
   const urlInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => urlInputRef.current?.focus(), 100);
-    } else {
-      // 닫힐 때 초기화
-      setStep("url");
-      setUrl(""); setCustomTitle(""); setMemo(""); setFolderId("");
-      setPreview(null); setUrlError("");
-    }
-  }, [open]);
+    setAvailableFolders(folders);
+  }, [folders]);
 
-  async function handleUrlNext(e: React.FormEvent) {
-    e.preventDefault();
-    if (!isValidUrl(url)) {
-      setUrlError("올바른 URL을 입력해주세요. (https://...)");
+  useEffect(() => {
+    if (!open) {
+      resetModal();
       return;
     }
+
+    setTimeout(() => {
+      urlInputRef.current?.focus();
+    }, 100);
+  }, [open]);
+
+  useEffect(() => {
+    if (!showFolderComposer) {
+      return;
+    }
+
+    setTimeout(() => {
+      folderInputRef.current?.focus();
+    }, 50);
+  }, [showFolderComposer]);
+
+  function resetModal() {
+    setStep("url");
+    setUrl("");
+    setCustomTitle("");
+    setMemo("");
+    setFolderId("");
+    setPreview(null);
+    setAvailableFolders(folders);
+    setFetchingPreview(false);
+    setSavingLink(false);
+    setCreatingFolder(false);
+    setShowFolderComposer(false);
+    setNewFolderName("");
     setUrlError("");
-    setFetching(true);
+    setFolderError("");
+  }
+
+  async function handlePreviewFetch(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!isValidUrl(url)) {
+      setUrlError("올바른 URL을 입력해 주세요. (https://...)");
+      return;
+    }
+
+    setUrlError("");
+    setFetchingPreview(true);
 
     try {
-      const res = await fetch(`/api/preview?url=${encodeURIComponent(url)}`);
-      if (res.ok) {
-        const data: LinkPreview = await res.json();
+      const response = await fetch(`/api/preview?url=${encodeURIComponent(url)}`);
+
+      if (!response.ok) {
+        setPreview(null);
+      } else {
+        const data: LinkPreview = await response.json();
         setPreview(data);
         setCustomTitle(data.title ?? "");
       }
     } catch {
-      // 미리보기 실패는 조용히 처리
+      setPreview(null);
+    } finally {
+      setFetchingPreview(false);
+      setStep("detail");
     }
-
-    setFetching(false);
-    setStep("detail");
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setSavingLink(true);
 
-    await onAdd({
-      url,
-      custom_title: customTitle || null,
-      memo: memo || null,
-      folder_id: folderId || null,
-      preview_title: preview?.title ?? null,
-      preview_description: preview?.description ?? null,
-      preview_image: preview?.image ?? null,
-      preview_site_name: preview?.site_name ?? null,
-    });
-
-    setLoading(false);
+    try {
+      await onAdd({
+        url,
+        custom_title: customTitle || null,
+        memo: memo || null,
+        folder_id: folderId || null,
+        preview_title: preview?.title ?? null,
+        preview_description: preview?.description ?? null,
+        preview_image: preview?.image ?? null,
+        preview_site_name: preview?.site_name ?? null,
+      });
+    } finally {
+      setSavingLink(false);
+    }
   }
 
-  if (!open) return null;
+  async function handleCreateFolder(e: React.FormEvent) {
+    e.preventDefault();
+
+    const trimmedName = newFolderName.trim();
+
+    if (!trimmedName) {
+      setFolderError("폴더 이름을 입력해 주세요.");
+      return;
+    }
+
+    setCreatingFolder(true);
+    setFolderError("");
+
+    try {
+      const createdFolder = await onCreateFolder(trimmedName);
+
+      setAvailableFolders((currentFolders) =>
+        sortFolders(upsertFolder(currentFolders, createdFolder))
+      );
+      setFolderId(createdFolder.id);
+      setNewFolderName("");
+      setShowFolderComposer(false);
+    } catch {
+      setFolderError("폴더를 만들지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setCreatingFolder(false);
+    }
+  }
+
+  if (!open) {
+    return null;
+  }
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Sheet */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl">
-        {/* Handle bar */}
+      <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-white shadow-2xl">
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-200" />
+          <div className="h-1 w-10 rounded-full bg-gray-200" />
         </div>
 
         <div className="px-5 pb-8 pt-3">
           {step === "url" ? (
             <>
-              <h2 className="text-lg font-bold text-gray-900 mb-5">링크 저장</h2>
+              <h2 className="mb-5 text-lg font-bold text-gray-900">링크 저장</h2>
 
-              <form onSubmit={handleUrlNext} className="space-y-3">
+              <form onSubmit={handlePreviewFetch} className="space-y-3">
                 <div>
                   <div className="flex gap-2">
                     <input
                       ref={urlInputRef}
                       type="url"
                       value={url}
-                      onChange={(e) => { setUrl(e.target.value); setUrlError(""); }}
+                      onChange={(e) => {
+                        setUrl(e.target.value);
+                        setUrlError("");
+                      }}
                       placeholder="https://..."
-                      className={`flex-1 rounded-2xl border px-4 py-3.5 text-sm outline-none transition
-                        ${urlError
+                      className={`flex-1 rounded-2xl border px-4 py-3.5 text-sm outline-none transition ${
+                        urlError
                           ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100"
                           : "border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                        }`}
+                      }`}
                     />
                     {url && (
                       <button
                         type="button"
-                        onClick={() => { setUrl(""); setUrlError(""); }}
-                        className="text-gray-300 hover:text-gray-500 transition px-1"
+                        onClick={() => {
+                          setUrl("");
+                          setUrlError("");
+                        }}
+                        className="px-1 text-gray-300 transition hover:text-gray-500"
+                        aria-label="입력한 URL 지우기"
                       >
                         <ClearIcon />
                       </button>
                     )}
                   </div>
-                  {urlError && <p className="text-xs text-red-500 mt-1.5 pl-1">{urlError}</p>}
+                  {urlError && (
+                    <p className="mt-1.5 pl-1 text-xs text-red-500">{urlError}</p>
+                  )}
                 </div>
 
                 <button
                   type="submit"
-                  disabled={!url || fetching}
-                  className="w-full rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white hover:bg-primary-600 transition disabled:opacity-40 shadow-md shadow-primary-500/25"
+                  disabled={!url || fetchingPreview}
+                  className="w-full rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-40 shadow-md shadow-primary-500/25"
                 >
-                  {fetching ? (
+                  {fetchingPreview ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Spinner /> 미리보기 불러오는 중...
+                      <Spinner />
+                      미리보기를 불러오는 중...
                     </span>
-                  ) : "다음"}
+                  ) : (
+                    "다음"
+                  )}
                 </button>
               </form>
             </>
           ) : (
             <>
-              {/* 뒤로 + 제목 */}
-              <div className="flex items-center gap-3 mb-5">
+              <div className="mb-5 flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={() => setStep("url")}
-                  className="p-1 -ml-1 text-gray-400 hover:text-gray-600 transition"
+                  className="p-1 -ml-1 text-gray-400 transition hover:text-gray-600"
                 >
                   <BackIcon />
                 </button>
                 <h2 className="text-lg font-bold text-gray-900">상세 정보</h2>
               </div>
 
-              {/* 미리보기 카드 */}
               {(preview?.image || preview?.title) && (
-                <div className="flex gap-3 bg-gray-50 rounded-2xl p-3 mb-4 border border-gray-100">
+                <div className="mb-4 flex gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3">
                   <PreviewThumbnail
                     image={preview.image}
                     title={preview.title ?? "링크 미리보기"}
                     siteName={preview.site_name}
                     url={url}
-                    className="w-14 h-14 rounded-xl"
+                    className="h-14 w-14 rounded-xl"
                   />
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">
+                  <div className="flex min-w-0 flex-1 flex-col justify-center">
+                    <p className="line-clamp-2 text-xs font-semibold leading-snug text-gray-800">
                       {preview.title}
                     </p>
                     {preview.site_name && (
-                      <p className="text-xs text-gray-400 mt-1">{preview.site_name}</p>
+                      <p className="mt-1 text-xs text-gray-400">{preview.site_name}</p>
                     )}
                   </div>
                 </div>
@@ -179,54 +269,102 @@ export default function AddLinkModal({ open, onClose, folders, onAdd }: AddLinkM
 
               <form onSubmit={handleSave} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 pl-1">제목</label>
+                  <label className="mb-1.5 block pl-1 text-xs font-semibold text-gray-500">
+                    제목
+                  </label>
                   <input
                     value={customTitle}
                     onChange={(e) => setCustomTitle(e.target.value)}
                     placeholder="제목 (선택)"
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition"
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 pl-1">메모</label>
+                  <label className="mb-1.5 block pl-1 text-xs font-semibold text-gray-500">
+                    메모
+                  </label>
                   <textarea
                     value={memo}
                     onChange={(e) => setMemo(e.target.value)}
-                    placeholder="기억하고 싶은 내용..."
+                    placeholder="기억하고 싶은 내용을 적어 보세요."
                     rows={3}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition resize-none"
+                    className="w-full resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 pl-1">폴더</label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="pl-1 text-xs font-semibold text-gray-500">
+                      폴더
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowFolderComposer((current) => !current);
+                        setFolderError("");
+                      }}
+                      className="text-xs font-semibold text-primary-500 transition hover:text-primary-600"
+                    >
+                      + 폴더 추가
+                    </button>
+                  </div>
+
                   <select
                     value={folderId}
                     onChange={(e) => setFolderId(e.target.value)}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition bg-white appearance-none"
+                    className="w-full appearance-none rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                   >
                     <option value="">미분류</option>
-                    {folders.map((f) => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
+                    {sortFolders(availableFolders).map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </option>
                     ))}
                   </select>
+
+                  {showFolderComposer && (
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                      <form onSubmit={handleCreateFolder} className="flex gap-2">
+                        <input
+                          ref={folderInputRef}
+                          value={newFolderName}
+                          onChange={(e) => {
+                            setNewFolderName(e.target.value);
+                            setFolderError("");
+                          }}
+                          placeholder="새 폴더 이름"
+                          className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        />
+                        <button
+                          type="submit"
+                          disabled={creatingFolder}
+                          className="rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
+                        >
+                          {creatingFolder ? "생성 중" : "추가"}
+                        </button>
+                      </form>
+                      {folderError && (
+                        <p className="mt-2 pl-1 text-xs text-red-500">{folderError}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition"
+                    className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
                   >
                     취소
                   </button>
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white hover:bg-primary-600 transition disabled:opacity-50 shadow-md shadow-primary-500/25"
+                    disabled={savingLink}
+                    className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50 shadow-md shadow-primary-500/25"
                   >
-                    {loading ? <Spinner className="mx-auto" /> : "저장"}
+                    {savingLink ? <Spinner className="mx-auto" /> : "저장"}
                   </button>
                 </div>
               </form>
@@ -238,20 +376,51 @@ export default function AddLinkModal({ open, onClose, folders, onAdd }: AddLinkM
   );
 }
 
-/* ── icons ── */
+function upsertFolder(folders: Folder[], nextFolder: Folder) {
+  const withoutExisting = folders.filter((folder) => folder.id !== nextFolder.id);
+  return [...withoutExisting, nextFolder];
+}
+
+function sortFolders(folders: Folder[]) {
+  return [...folders].sort((left, right) => left.sort_order - right.sort_order);
+}
 
 function Spinner({ className }: { className?: string }) {
   return (
-    <svg className={`inline-block animate-spin w-4 h-4 ${className ?? ""}`} viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    <svg
+      className={`inline-block h-4 w-4 animate-spin ${className ?? ""}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
     </svg>
   );
 }
 
 function BackIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <polyline points="15 18 9 12 15 6" />
     </svg>
   );
@@ -259,7 +428,16 @@ function BackIcon() {
 
 function ClearIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>

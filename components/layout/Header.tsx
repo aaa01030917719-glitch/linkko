@@ -1,18 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { signOutAndRedirect } from "@/lib/supabase/logout";
 
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const showBack = !pathname.startsWith("/dashboard");
+  const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+    setLoggingOut(true);
+    await signOutAndRedirect(router);
   }
 
   return (
@@ -23,18 +23,23 @@ export default function Header() {
             <button
               onClick={() => router.back()}
               className="p-1.5 -ml-1.5 mr-1 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
-              aria-label="뒤로가기"
+              aria-label="뒤로 가기"
+              type="button"
             >
               <BackIcon />
             </button>
           )}
-          <span className="text-base font-bold text-gray-900 tracking-tight">링코</span>
+          <span className="text-base font-bold text-gray-900 tracking-tight">
+            링크코
+          </span>
         </div>
         <button
           onClick={handleLogout}
-          className="text-sm text-gray-400 hover:text-gray-600 transition px-2 py-1"
+          disabled={loggingOut}
+          type="button"
+          className="px-2 py-1 text-sm text-gray-400 transition hover:text-gray-600 disabled:opacity-50"
         >
-          로그아웃
+          {loggingOut ? "로그아웃 중..." : "로그아웃"}
         </button>
       </div>
     </header>

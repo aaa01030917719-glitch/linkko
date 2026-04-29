@@ -30,12 +30,15 @@ export function useFolders() {
   }, []);
 
   async function createFolder(name: string) {
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error("폴더 이름을 입력해 주세요.");
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("로그인이 필요합니다.");
     const maxOrder = folders.reduce((max, f) => Math.max(max, f.sort_order), -1);
     const { data, error } = await supabase
       .from("folders")
-      .insert({ name, sort_order: maxOrder + 1, user_id: user.id })
+      .insert({ name: trimmedName, sort_order: maxOrder + 1, user_id: user.id })
       .select()
       .single();
 
