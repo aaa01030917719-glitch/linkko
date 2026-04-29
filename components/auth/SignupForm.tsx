@@ -2,30 +2,55 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import {
+  getEmailConfirmationRedirectUrl,
+  getOAuthRedirectUrl,
+} from "@/lib/supabase/auth-redirect";
 
 type Step = "form" | "done";
-type FieldError = { email?: string; password?: string; confirm?: string; general?: string };
+type FieldError = {
+  email?: string;
+  password?: string;
+  confirm?: string;
+  general?: string;
+};
 
 export default function SignupForm() {
+  const router = useRouter();
+  const supabase = createClient();
   const [step, setStep] = useState<Step>("form");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [errors, setErrors] = useState<FieldError>({});
+  const [notice, setNotice] = useState("");
 
-  const supabase = createClient();
-
-  function validate(): boolean {
+  function validate() {
     const next: FieldError = {};
-    if (!email) next.email = "이메일을 입력해주세요.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = "올바른 이메일 형식이 아니에요.";
-    if (!password) next.password = "비밀번호를 입력해주세요.";
-    else if (password.length < 6) next.password = "비밀번호는 6자 이상이어야 해요.";
-    if (!confirm) next.confirm = "비밀번호를 한 번 더 입력해주세요.";
-    else if (password !== confirm) next.confirm = "비밀번호가 일치하지 않아요.";
+
+    if (!email) {
+      next.email = "이메일을 입력해 주세요.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      next.email = "올바른 이메일 형식을 입력해 주세요.";
+    }
+
+    if (!password) {
+      next.password = "비밀번호를 입력해 주세요.";
+    } else if (password.length < 6) {
+      next.password = "비밀번호는 6자 이상이어야 해요.";
+    }
+
+    if (!confirm) {
+      next.confirm = "비밀번호를 한 번 더 입력해 주세요.";
+    } else if (password !== confirm) {
+      next.confirm = "비밀번호가 서로 다르게 입력됐어요.";
+    }
+
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -36,96 +61,168 @@ export default function SignupForm() {
 
     setLoading(true);
     setErrors({});
+    setNotice("");
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: getEmailConfirmationRedirectUrl("/dashboard"),
+      },
     });
 
     if (error) {
-      setErrors({ general: translateError(error.message) });
+      setErrors({ general: translateSignupError(error.message) });
       setLoading(false);
       return;
     }
 
+    if (data.session) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
     setStep("done");
+    setNotice("인증 메일을 보냈어요. 메일함에서 인증 링크를 눌러주세요.");
     setLoading(false);
   }
 
   async function handleGoogleLogin() {
     setGoogleLoading(true);
     setErrors({});
+    setNotice("");
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      options: {
+        redirectTo: getOAuthRedirectUrl("/dashboard"),
+      },
     });
 
     if (error) {
-      setErrors({ general: translateError(error.message) });
+      setErrors({ general: translateOAuthError(error.message) });
       setGoogleLoading(false);
     }
+  }
+
+  async function handleResendConfirmation() {
+    if (!email) {
+      setErrors({ email: "인증 메일을 받을 이메일을 먼저 입력해 주세요." });
+      return;
+    }
+
+    setResendLoading(true);
+    setErrors((prev) => ({ ...prev, general: undefined }));
+    setNotice("");
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: getEmailConfirmationRedirectUrl("/dashboard"),
+      },
+    });
+
+    if (error) {
+      setErrors({ general: translateResendError(error.message) });
+      setResendLoading(false);
+      return;
+    }
+
+    setNotice("인증 메일을 다시 보냈어요. 받은편지함과 스팸함을 함께 확인해 주세요.");
+    setResendLoading(false);
   }
 
   if (step === "done") {
     return (
       <div className="w-full max-w-[400px] text-center">
-        <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-5">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
           <CheckIcon />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">이메일을 확인해주세요</h2>
-        <p className="text-sm text-gray-500 leading-relaxed">
-          <span className="font-medium text-gray-800">{email}</span>로<br />
-          인증 메일을 발송했어요.<br />
-          메일의 링크를 클릭하면 가입이 완료돼요.
+        <h2 className="mb-2 text-xl font-bold text-gray-900">
+          메일 확인이 필요해요
+        </h2>
+        <p className="text-sm leading-relaxed text-gray-500">
+          <span className="font-medium text-gray-800">{email}</span>
+          로 인증 메일을 보냈어요.
+          <br />
+          메일함에서 인증 링크를 누른 뒤 다시 돌아와 주세요.
         </p>
+
+        {notice ? (
+          <MessageBox tone="success" className="mt-5">
+            {notice}
+          </MessageBox>
+        ) : null}
+
+        <div className="mt-5 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left text-sm text-gray-600 shadow-sm">
+          <p className="font-semibold text-gray-900">메일이 안 보이나요?</p>
+          <ul className="mt-2 space-y-1 text-sm">
+            <li>스팸함이나 프로모션함도 함께 확인해 주세요.</li>
+            <li>조금 전 요청했다면 1분 정도 기다린 뒤 다시 시도해 주세요.</li>
+            <li>이미 가입한 이메일이라면 로그인 페이지에서 바로 로그인해 주세요.</li>
+          </ul>
+        </div>
+
+        {errors.general ? (
+          <MessageBox tone="error" className="mt-4">
+            {errors.general}
+          </MessageBox>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={handleResendConfirmation}
+          disabled={resendLoading}
+          className="mt-6 w-full rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+        >
+          {resendLoading ? (
+            <Spinner className="mx-auto text-gray-400" />
+          ) : (
+            "인증 메일 다시 보내기"
+          )}
+        </button>
+
         <Link
           href="/login"
-          className="mt-8 inline-block w-full rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white hover:bg-primary-600 transition shadow-md shadow-primary-500/25"
+          className="mt-3 inline-block w-full rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 shadow-md shadow-primary-500/25"
         >
           로그인하러 가기
         </Link>
-        <p className="mt-4 text-xs text-gray-400">
-          메일이 안 왔나요?{" "}
-          <button
-            onClick={() => { setStep("form"); }}
-            className="text-primary-500 font-medium hover:underline"
-          >
-            다시 시도
-          </button>
-        </p>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-[400px]">
-      {/* 로고 */}
       <div className="mb-10 flex flex-col items-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-primary-500 flex items-center justify-center shadow-lg shadow-primary-500/30">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-500 shadow-lg shadow-primary-500/30">
           <LinkkoIcon />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">링코 시작하기</h1>
-          <p className="text-sm text-gray-500 mt-0.5">무료로 가입하고 링크를 저장해보세요</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+            링코 시작하기
+          </h1>
+          <p className="mt-0.5 text-sm text-gray-500">
+            무료로 가입하고 링크를 차곡차곡 정리해 보세요.
+          </p>
         </div>
       </div>
 
-      {/* 구글 */}
       <button
         onClick={handleGoogleLogin}
         disabled={googleLoading || loading}
-        className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 rounded-2xl py-3.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition disabled:opacity-50 shadow-sm"
+        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
       >
         {googleLoading ? <Spinner className="text-gray-400" /> : <GoogleIcon />}
-        구글로 계속하기
+        Google로 계속하기
       </button>
 
       <div className="my-5 flex items-center gap-3">
-        <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-xs text-gray-400 font-medium">또는 이메일로</span>
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="h-px flex-1 bg-gray-200" />
+        <span className="text-xs font-medium text-gray-400">또는 이메일로</span>
+        <div className="h-px flex-1 bg-gray-200" />
       </div>
 
       <form onSubmit={handleSignup} noValidate className="space-y-3">
@@ -133,7 +230,10 @@ export default function SignupForm() {
           <input
             type="email"
             value={email}
-            onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: undefined })); }}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setErrors((prev) => ({ ...prev, email: undefined }));
+            }}
             placeholder="이메일"
             autoComplete="email"
             className={inputCls(!!errors.email)}
@@ -145,7 +245,14 @@ export default function SignupForm() {
           <input
             type="password"
             value={password}
-            onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined, confirm: undefined })); }}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setErrors((prev) => ({
+                ...prev,
+                password: undefined,
+                confirm: undefined,
+              }));
+            }}
             placeholder="비밀번호 (6자 이상)"
             autoComplete="new-password"
             className={inputCls(!!errors.password)}
@@ -157,7 +264,10 @@ export default function SignupForm() {
           <input
             type="password"
             value={confirm}
-            onChange={(e) => { setConfirm(e.target.value); setErrors((p) => ({ ...p, confirm: undefined })); }}
+            onChange={(e) => {
+              setConfirm(e.target.value);
+              setErrors((prev) => ({ ...prev, confirm: undefined }));
+            }}
             placeholder="비밀번호 확인"
             autoComplete="new-password"
             className={inputCls(!!errors.confirm)}
@@ -165,16 +275,13 @@ export default function SignupForm() {
           {errors.confirm && <FieldMsg>{errors.confirm}</FieldMsg>}
         </div>
 
-        {errors.general && (
-          <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-500">
-            {errors.general}
-          </div>
-        )}
+        {errors.general ? <MessageBox tone="error">{errors.general}</MessageBox> : null}
+        {notice ? <MessageBox tone="success">{notice}</MessageBox> : null}
 
         <button
           type="submit"
           disabled={loading || googleLoading}
-          className="w-full rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white hover:bg-primary-600 active:bg-primary-700 transition disabled:opacity-50 shadow-md shadow-primary-500/25 mt-1"
+          className="mt-1 w-full rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 active:bg-primary-700 disabled:opacity-50 shadow-md shadow-primary-500/25"
         >
           {loading ? <Spinner className="mx-auto text-white" /> : "회원가입"}
         </button>
@@ -184,7 +291,7 @@ export default function SignupForm() {
         이미 계정이 있으신가요?{" "}
         <Link
           href="/login"
-          className="font-semibold text-primary-500 hover:text-primary-600 transition"
+          className="font-semibold text-primary-500 transition hover:text-primary-600"
         >
           로그인
         </Link>
@@ -192,8 +299,6 @@ export default function SignupForm() {
     </div>
   );
 }
-
-/* ── helpers ── */
 
 function inputCls(hasError: boolean) {
   return [
@@ -206,23 +311,92 @@ function inputCls(hasError: boolean) {
 }
 
 function FieldMsg({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-red-500 pl-1">{children}</p>;
+  return <p className="pl-1 text-xs text-red-500">{children}</p>;
+}
+
+function MessageBox({
+  children,
+  className = "",
+  tone,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  tone: "error" | "success";
+}) {
+  const styles =
+    tone === "error"
+      ? "border-red-100 bg-red-50 text-red-600"
+      : "border-green-100 bg-green-50 text-green-700";
+
+  return (
+    <div className={`rounded-xl border px-4 py-3 text-sm ${styles} ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 function Spinner({ className }: { className?: string }) {
   return (
-    <svg className={`animate-spin w-4 h-4 ${className ?? ""}`} viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    <svg
+      className={`h-4 w-4 animate-spin ${className ?? ""}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
     </svg>
   );
 }
 
-function translateError(msg: string): string {
-  if (msg.includes("User already registered")) return "이미 가입된 이메일이에요. 로그인해주세요.";
-  if (msg.includes("Password should be")) return "비밀번호는 6자 이상이어야 해요.";
-  if (msg.includes("Too many requests")) return "요청이 너무 많아요. 잠시 후 다시 시도해주세요.";
-  return "가입 중 오류가 발생했어요. 다시 시도해주세요.";
+function translateSignupError(message: string) {
+  if (message.includes("User already registered")) {
+    return "이미 가입된 이메일이에요. 로그인하거나 인증 메일을 다시 받아 주세요.";
+  }
+
+  if (message.includes("Email address not authorized")) {
+    return "현재 메일 발송 설정으로는 이 주소에 인증 메일을 보낼 수 없어요. 관리자에게 문의해 주세요.";
+  }
+
+  if (message.includes("Password should be")) {
+    return "비밀번호는 6자 이상이어야 해요.";
+  }
+
+  if (message.includes("Too many requests")) {
+    return "요청이 잠시 많았어요. 잠깐 뒤에 다시 시도해 주세요.";
+  }
+
+  return "회원가입 중 문제가 생겼어요. 다시 시도해 주세요.";
+}
+
+function translateResendError(message: string) {
+  if (message.includes("Email address not authorized")) {
+    return "현재 메일 발송 설정으로는 이 주소에 인증 메일을 보낼 수 없어요. 관리자에게 문의해 주세요.";
+  }
+
+  if (message.includes("Too many requests") || message.includes("security purposes")) {
+    return "방금 메일을 보냈다면 1분 정도 뒤에 다시 시도해 주세요.";
+  }
+
+  return "인증 메일을 다시 보내지 못했어요. 잠시 뒤에 다시 시도해 주세요.";
+}
+
+function translateOAuthError(message: string) {
+  if (message.includes("provider is not enabled")) {
+    return "Google 로그인이 아직 설정되지 않았어요.";
+  }
+
+  return "Google 로그인 중 문제가 생겼어요. 다시 시도해 주세요.";
 }
 
 function LinkkoIcon() {
@@ -242,17 +416,38 @@ function LinkkoIcon() {
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853" />
-      <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05" />
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
+      <path
+        d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
+        fill="#4285F4"
+      />
+      <path
+        d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"
+        fill="#34A853"
+      />
+      <path
+        d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+        fill="#EA4335"
+      />
     </svg>
   );
 }
 
 function CheckIcon() {
   return (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#22c55e"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );

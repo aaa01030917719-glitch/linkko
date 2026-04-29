@@ -294,34 +294,35 @@ export default function AddLinkModal({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="pl-1 text-xs font-semibold text-gray-500">
-                      폴더
-                    </label>
+                  <label className="block pl-1 text-xs font-semibold text-gray-500">
+                    폴더
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={folderId}
+                      onChange={(e) => setFolderId(e.target.value)}
+                      className="min-w-0 flex-1 appearance-none rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    >
+                      <option value="">미분류</option>
+                      {sortFolders(availableFolders).map((folder) => (
+                        <option key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </option>
+                      ))}
+                    </select>
+
                     <button
                       type="button"
                       onClick={() => {
                         setShowFolderComposer((current) => !current);
                         setFolderError("");
                       }}
-                      className="text-xs font-semibold text-primary-500 transition hover:text-primary-600"
+                      className="shrink-0 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3.5 text-sm font-semibold text-primary-600 transition hover:border-primary-300 hover:bg-primary-100"
                     >
-                      + 폴더 추가
+                      추가
                     </button>
                   </div>
-
-                  <select
-                    value={folderId}
-                    onChange={(e) => setFolderId(e.target.value)}
-                    className="w-full appearance-none rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  >
-                    <option value="">미분류</option>
-                    {sortFolders(availableFolders).map((folder) => (
-                      <option key={folder.id} value={folder.id}>
-                        {folder.name}
-                      </option>
-                    ))}
-                  </select>
 
                   {showFolderComposer && (
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
