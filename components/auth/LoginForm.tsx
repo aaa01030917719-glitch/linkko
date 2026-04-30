@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import PasswordInput from "@/components/auth/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import {
   getEmailConfirmationRedirectUrl,
@@ -15,27 +16,43 @@ type FieldError = {
   general?: string;
 };
 
+const REMEMBERED_EMAIL_KEY = "linkko.remembered-email";
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberEmail, setRememberEmail] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(
-    searchParams.get("error") === "email_confirmation_failed"
+    searchParams.get("error") === "email_confirmation_failed",
   );
   const [errors, setErrors] = useState<FieldError>({});
   const [notice, setNotice] = useState("");
+  const emailRedirectTo = getEmailConfirmationRedirectUrl("/dashboard");
+
+  useEffect(() => {
+    const savedEmail = window.localStorage.getItem(REMEMBERED_EMAIL_KEY);
+
+    if (!savedEmail) {
+      return;
+    }
+
+    setEmail(savedEmail);
+    setRememberEmail(true);
+  }, []);
 
   function validate() {
     const next: FieldError = {};
+    const normalizedEmail = email.trim();
 
-    if (!email) {
+    if (!normalizedEmail) {
       next.email = "이메일을 입력해 주세요.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       next.email = "올바른 이메일 형식을 입력해 주세요.";
     }
 
@@ -47,15 +64,52 @@ export default function LoginForm() {
     return Object.keys(next).length === 0;
   }
 
+  function saveRememberedEmail(nextEmail: string) {
+    const normalizedEmail = nextEmail.trim();
+
+    if (!normalizedEmail) {
+      window.localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(REMEMBERED_EMAIL_KEY, normalizedEmail);
+  }
+
+  function removeRememberedEmail() {
+    window.localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+  }
+
+  function handleRememberEmailChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const checked = event.target.checked;
+    setRememberEmail(checked);
+
+    if (!checked) {
+      removeRememberedEmail();
+    }
+  }
+
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
+
+    const normalizedEmail = email.trim();
+
+    if (rememberEmail) {
+      saveRememberedEmail(normalizedEmail);
+    } else {
+      removeRememberedEmail();
+    }
 
     setLoading(true);
     setErrors({});
     setNotice("");
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
 
     if (error) {
       const requiresConfirmation = messageNeedsConfirmation(error.message);
@@ -88,12 +142,14 @@ export default function LoginForm() {
   }
 
   async function handleResendConfirmation() {
-    if (!email) {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
       setErrors({ email: "인증 메일을 받을 이메일을 먼저 입력해 주세요." });
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       setErrors({ email: "올바른 이메일 형식을 입력해 주세요." });
       return;
     }
@@ -104,20 +160,33 @@ export default function LoginForm() {
 
     const { error } = await supabase.auth.resend({
       type: "signup",
-      email,
+      email: normalizedEmail,
       options: {
-        emailRedirectTo: getEmailConfirmationRedirectUrl("/dashboard"),
+        emailRedirectTo,
       },
     });
 
+    logAuthResponse("resendSignupConfirmation", {
+      email: normalizedEmail,
+      emailRedirectTo,
+      error,
+    });
+
     if (error) {
-      setErrors({ general: translateResendError(error.message) });
+      setErrors({
+        general: formatVisibleAuthError(
+          translateResendError(error.message),
+          error.message,
+        ),
+      });
       setResendLoading(false);
       return;
     }
 
     setNeedsEmailConfirmation(true);
-    setNotice("인증 메일을 다시 보냈어요. 받은편지함과 스팸함을 함께 확인해 주세요.");
+    setNotice(
+      "인증 메일을 다시 보냈어요. 받은편지함과 스팸함을 함께 확인해 주세요.",
+    );
     setResendLoading(false);
   }
 
@@ -130,7 +199,9 @@ export default function LoginForm() {
           <LinkkoIcon />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">링코</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+            링코
+          </h1>
           <p className="mt-0.5 text-sm text-gray-500">나만의 링크 아카이브</p>
         </div>
       </div>
@@ -161,8 +232,8 @@ export default function LoginForm() {
           <input
             type="email"
             value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
+            onChange={(event) => {
+              setEmail(event.target.value);
               setErrors((prev) => ({ ...prev, email: undefined }));
             }}
             placeholder="이메일"
@@ -172,17 +243,27 @@ export default function LoginForm() {
           {errors.email && <FieldMsg>{errors.email}</FieldMsg>}
         </div>
 
-        <div className="space-y-1">
+        <label className="flex items-center gap-2 pl-1 text-sm text-gray-600">
           <input
-            type="password"
+            type="checkbox"
+            checked={rememberEmail}
+            onChange={handleRememberEmailChange}
+            className="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-200"
+          />
+          아이디 저장
+        </label>
+
+        <div className="space-y-1">
+          <PasswordInput
             value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
+            onChange={(event) => {
+              setPassword(event.target.value);
               setErrors((prev) => ({ ...prev, password: undefined }));
             }}
             placeholder="비밀번호"
             autoComplete="current-password"
             className={inputCls(!!errors.password)}
+            toggleLabel="비밀번호"
           />
           {errors.password && <FieldMsg>{errors.password}</FieldMsg>}
         </div>
@@ -295,6 +376,48 @@ function Spinner({ className }: { className?: string }) {
   );
 }
 
+type AuthLikeError = Error & {
+  code?: string;
+  status?: number;
+};
+
+function formatVisibleAuthError(
+  friendlyMessage: string,
+  technicalMessage?: string,
+) {
+  if (!technicalMessage || technicalMessage === friendlyMessage) {
+    return friendlyMessage;
+  }
+
+  return `${friendlyMessage} (${technicalMessage})`;
+}
+
+function logAuthResponse(
+  action: string,
+  {
+    email,
+    emailRedirectTo,
+    error,
+  }: {
+    email: string;
+    emailRedirectTo: string;
+    error: AuthLikeError | null;
+  },
+) {
+  console.log(`[auth] ${action}`, {
+    email,
+    emailRedirectTo,
+    error: error
+      ? {
+          message: error.message,
+          name: error.name,
+          status: error.status,
+          code: error.code,
+        }
+      : null,
+  });
+}
+
 function getSystemMessage(errorCode: string | null) {
   if (errorCode === "email_confirmation_failed") {
     return {
@@ -339,7 +462,10 @@ function translateResendError(message: string) {
     return "현재 메일 발송 설정으로는 이 주소에 인증 메일을 보낼 수 없어요. 관리자에게 문의해 주세요.";
   }
 
-  if (message.includes("Too many requests") || message.includes("security purposes")) {
+  if (
+    message.includes("Too many requests") ||
+    message.includes("security purposes")
+  ) {
     return "방금 메일을 보냈다면 1분 정도 뒤에 다시 시도해 주세요.";
   }
 
