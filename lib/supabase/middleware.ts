@@ -35,10 +35,12 @@ export async function updateSession(request: NextRequest) {
   const isEntryPath = pathname === "/";
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
   const isPublicApi = pathname.startsWith("/api/preview");
+  const isPublicAuthApi = pathname.startsWith("/api/auth/dev-signup");
   const isPublicPath =
     isEntryPath ||
     isAuthPage ||
     isPublicApi ||
+    isPublicAuthApi ||
     pathname.startsWith("/auth/");
 
   if (!user && !isPublicPath) {
