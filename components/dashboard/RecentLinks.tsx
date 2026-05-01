@@ -1,7 +1,6 @@
 import Link from "next/link";
-import PreviewThumbnail from "@/components/link/PreviewThumbnail";
-import { extractDomain } from "@/lib/utils/url";
 import { timeAgo } from "@/lib/utils/time";
+import { extractDomain } from "@/lib/utils/url";
 import type { Link as LinkType } from "@/types";
 
 interface RecentLinksProps {
@@ -12,15 +11,18 @@ interface RecentLinksProps {
 export default function RecentLinks({ links, loading }: RecentLinksProps) {
   if (loading) {
     return (
-      <div className="space-y-3">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex gap-3 bg-white rounded-2xl border border-gray-100 p-3 animate-pulse">
-            <div className="w-16 h-16 rounded-xl bg-gray-100 shrink-0" />
-            <div className="flex-1 space-y-2 py-1">
-              <div className="h-3.5 bg-gray-100 rounded w-3/4" />
-              <div className="h-3 bg-gray-100 rounded w-1/2" />
-              <div className="h-3 bg-gray-100 rounded w-1/4" />
+      <div className="space-y-1">
+        {[...Array(4)].map((_, index) => (
+          <div
+            key={index}
+            className="flex min-h-12 items-center gap-3 py-2 animate-pulse"
+          >
+            <div className="h-6 w-6 rounded-full bg-gray-100" />
+            <div className="min-w-0 flex-1">
+              <div className="h-3.5 w-3/4 rounded-full bg-gray-100" />
+              <div className="mt-2 h-2.5 w-1/3 rounded-full bg-gray-100" />
             </div>
+            <div className="h-4 w-4 rounded-full bg-gray-100" />
           </div>
         ))}
       </div>
@@ -29,50 +31,148 @@ export default function RecentLinks({ links, loading }: RecentLinksProps) {
 
   if (links.length === 0) {
     return (
-      <div className="text-center py-10">
-        <p className="text-2xl mb-2">🔗</p>
-        <p className="text-sm text-gray-400">저장된 링크가 없어요</p>
-        <p className="text-xs text-gray-300 mt-1">아래 버튼으로 첫 링크를 저장해보세요</p>
+      <div className="py-8">
+        <p className="text-sm font-semibold text-gray-500">아직 저장한 링크가 없어요.</p>
+        <p className="mt-1 text-xs text-gray-400">
+          아래 버튼으로 첫 링크를 저장해 보세요.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2.5">
+    <div className="divide-y divide-gray-100">
       {links.map((link) => {
         const title = link.custom_title || link.preview_title || extractDomain(link.url);
+        const domain = extractDomain(link.url);
+        const platform = getPlatformType(link.url, link.preview_site_name);
+
         return (
           <Link
             key={link.id}
             href={`/links/${link.id}`}
-            className="flex gap-3 bg-white rounded-2xl border border-gray-100 p-3 hover:bg-gray-50 active:bg-gray-100 transition shadow-sm"
+            className="flex min-h-12 items-center gap-3 py-2 transition hover:bg-gray-50 active:bg-gray-100"
           >
-            {/* 썸네일 */}
-            <PreviewThumbnail
-              image={link.preview_image}
-              title={title}
-              siteName={link.preview_site_name}
-              url={link.url}
-              className="w-16 h-16 rounded-xl"
-            />
+            <div className={getPlatformIconClassName(platform)}>
+              <PlatformIcon type={platform} />
+            </div>
 
-            {/* 텍스트 */}
-            <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-              <p className="text-sm font-semibold text-gray-900 line-clamp-1">{title}</p>
-              <p className="text-xs text-gray-400">{extractDomain(link.url)}</p>
-              <p className="text-xs text-gray-300">{timeAgo(link.created_at)}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-medium text-gray-900">
+                {title}
+              </p>
+              <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-400">
+                <span className="truncate">{domain}</span>
+                <span aria-hidden="true">•</span>
+                <span>{timeAgo(link.created_at)}</span>
+              </div>
+            </div>
+
+            <div className="shrink-0 text-gray-300">
+              <ArrowIcon />
             </div>
           </Link>
         );
       })}
 
-      {/* 전체 보기 */}
       <Link
         href="/links"
-        className="block text-center text-sm text-primary-500 font-medium py-2 hover:underline"
+        className="flex min-h-11 items-center justify-between py-2 text-sm font-medium text-primary-500 transition hover:text-primary-600"
       >
-        전체 보기 →
+        <span>전체 링크 보기</span>
+        <ArrowIcon />
       </Link>
     </div>
+  );
+}
+
+type PlatformType = "instagram" | "youtube" | "default";
+
+function getPlatformType(url: string, siteName: string | null) {
+  const target = `${url} ${siteName ?? ""}`.toLowerCase();
+
+  if (target.includes("instagram")) {
+    return "instagram";
+  }
+
+  if (target.includes("youtube") || target.includes("youtu.be")) {
+    return "youtube";
+  }
+
+  return "default";
+}
+
+function getPlatformIconClassName(type: PlatformType) {
+  if (type === "instagram") {
+    return "flex h-6 w-6 shrink-0 items-center justify-center text-pink-500";
+  }
+
+  if (type === "youtube") {
+    return "flex h-6 w-6 shrink-0 items-center justify-center text-red-500";
+  }
+
+  return "flex h-6 w-6 shrink-0 items-center justify-center text-gray-400";
+}
+
+function PlatformIcon({ type }: { type: PlatformType }) {
+  if (type === "instagram") {
+    return (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="17.3" cy="6.7" r="0.9" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
+  if (type === "youtube") {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.8 4.6 12 4.6 12 4.6s-5.8 0-7.5.5a3 3 0 0 0-2.1 2.1C2 8.9 2 12 2 12s0 3.1.4 4.8a3 3 0 0 0 2.1 2.1c1.7.5 7.5.5 7.5.5s5.8 0 7.5-.5a3 3 0 0 0 2.1-2.1c.4-1.7.4-4.8.4-4.8s0-3.1-.4-4.8ZM10 15.5v-7l6 3.5-6 3.5Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 7h3a5 5 0 0 1 0 10h-3" />
+      <path d="M9 17H6A5 5 0 1 1 6 7h3" />
+      <path d="M8 12h8" />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
   );
 }

@@ -74,9 +74,8 @@ export default function BottomSheetShell({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-50 px-3"
+      className="fixed inset-x-0 bottom-0 z-50"
       style={{
-        paddingBottom: "env(safe-area-inset-bottom)",
         transform:
           keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : undefined,
         transition: "transform 180ms ease-out",
@@ -84,7 +83,7 @@ export default function BottomSheetShell({
     >
       <div
         ref={sheetRef}
-        className={`mx-auto mb-3 w-full max-w-2xl overflow-hidden rounded-t-3xl bg-white shadow-2xl ${className}`}
+        className={`w-full overflow-hidden rounded-t-[28px] rounded-b-none bg-white shadow-2xl md:mx-auto md:max-w-2xl ${className}`}
         style={{ maxHeight: "78vh" }}
       >
         <div className="flex justify-center pb-1 pt-3">

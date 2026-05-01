@@ -60,8 +60,8 @@ export default function AddLinkModal({
   const [fetchingPreview, setFetchingPreview] = useState(false);
   const [savingLink, setSavingLink] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
-  const [showFolderComposer, setShowFolderComposer] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
+  const [isEditingFolderName, setIsEditingFolderName] = useState(false);
+  const [folderDraftName, setFolderDraftName] = useState("");
   const [urlError, setUrlError] = useState("");
   const [folderError, setFolderError] = useState("");
 
@@ -73,6 +73,18 @@ export default function AddLinkModal({
     () => buildMemoCandidate(initialSharedText, initialUrl),
     [initialSharedText, initialUrl],
   );
+
+  const sortedFolders = useMemo(
+    () => sortFolders(availableFolders),
+    [availableFolders],
+  );
+
+  const selectedFolder = useMemo(
+    () => sortedFolders.find((folder) => folder.id === folderId) ?? null,
+    [folderId, sortedFolders],
+  );
+
+  const selectedFolderLabel = selectedFolder?.name ?? "미분류";
 
   useEffect(() => {
     setAvailableFolders(folders);
@@ -119,7 +131,7 @@ export default function AddLinkModal({
     preparedSharedSignatureRef.current = nextSignature;
 
     if (normalizedMemo) {
-      setMemo(currentMemo => currentMemo || normalizedMemo);
+      setMemo((currentMemo) => currentMemo || normalizedMemo);
     }
 
     if (!normalizedUrl) {
@@ -131,16 +143,25 @@ export default function AddLinkModal({
   }, [initialUrl, open, sharedMemoCandidate]);
 
   useEffect(() => {
-    if (!showFolderComposer) {
+    if (isEditingFolderName) {
+      return;
+    }
+
+    setFolderDraftName(selectedFolder?.name ?? "");
+  }, [isEditingFolderName, selectedFolder]);
+
+  useEffect(() => {
+    if (!isEditingFolderName) {
       return;
     }
 
     const timer = window.setTimeout(() => {
       folderInputRef.current?.focus();
+      folderInputRef.current?.select();
     }, 50);
 
     return () => window.clearTimeout(timer);
-  }, [showFolderComposer]);
+  }, [isEditingFolderName]);
 
   function resetModal() {
     setStep("url");
@@ -153,8 +174,8 @@ export default function AddLinkModal({
     setFetchingPreview(false);
     setSavingLink(false);
     setCreatingFolder(false);
-    setShowFolderComposer(false);
-    setNewFolderName("");
+    setIsEditingFolderName(false);
+    setFolderDraftName("");
     setUrlError("");
     setFolderError("");
   }
@@ -173,7 +194,7 @@ export default function AddLinkModal({
     setFetchingPreview(true);
 
     if (nextMemoCandidate) {
-      setMemo(currentMemo => currentMemo || nextMemoCandidate);
+      setMemo((currentMemo) => currentMemo || nextMemoCandidate);
     }
 
     try {
@@ -186,7 +207,7 @@ export default function AddLinkModal({
       } else {
         const data: LinkPreview = await response.json();
         setPreview(data);
-        setCustomTitle(currentTitle => currentTitle || data.title || "");
+        setCustomTitle((currentTitle) => currentTitle || data.title || "");
       }
     } catch {
       setPreview(null);
@@ -221,11 +242,37 @@ export default function AddLinkModal({
     }
   }
 
-  async function handleCreateFolder() {
-    const trimmedName = newFolderName.trim();
+  function beginFolderNameEditing() {
+    setFolderDraftName(selectedFolder?.name ?? "");
+    setFolderError("");
+    setIsEditingFolderName(true);
+  }
+
+  async function handleConfirmFolderName() {
+    const trimmedName = folderDraftName.trim();
 
     if (!trimmedName) {
       setFolderError("폴더 이름을 입력해 주세요.");
+      return;
+    }
+
+    if (trimmedName === "미분류") {
+      setFolderId("");
+      setFolderDraftName("");
+      setIsEditingFolderName(false);
+      setFolderError("");
+      return;
+    }
+
+    const existingFolder = sortedFolders.find(
+      (folder) => normalizeFolderName(folder.name) === normalizeFolderName(trimmedName),
+    );
+
+    if (existingFolder) {
+      setFolderId(existingFolder.id);
+      setFolderDraftName(existingFolder.name);
+      setIsEditingFolderName(false);
+      setFolderError("");
       return;
     }
 
@@ -239,8 +286,8 @@ export default function AddLinkModal({
         sortFolders(upsertFolder(currentFolders, createdFolder)),
       );
       setFolderId(createdFolder.id);
-      setNewFolderName("");
-      setShowFolderComposer(false);
+      setFolderDraftName(createdFolder.name);
+      setIsEditingFolderName(false);
     } catch {
       setFolderError("폴더를 만들지 못했어요. 다시 시도해 주세요.");
     } finally {
@@ -254,7 +301,13 @@ export default function AddLinkModal({
     }
 
     event.preventDefault();
-    void handleCreateFolder();
+    void handleConfirmFolderName();
+  }
+
+  function handleSelectFolder(nextFolderId: string) {
+    setFolderId(nextFolderId);
+    setIsEditingFolderName(false);
+    setFolderError("");
   }
 
   if (!open) {
@@ -311,12 +364,14 @@ export default function AddLinkModal({
                       </button>
                     ) : null}
                   </div>
+
                   {urlError ? (
                     <p className="mt-1.5 pl-1 text-xs text-red-500">{urlError}</p>
                   ) : null}
+
                   {!url && sharedMemoCandidate && !initialUrl ? (
                     <p className="mt-2 pl-1 text-xs text-gray-500">
-                      공유한 내용은 메모로 보관해 둘게요. 링크만 붙여 넣으면 바로
+                      공유한 텍스트는 메모로 넣어 둘게요. 링크만 붙여 넣으면 바로
                       이어서 저장할 수 있어요.
                     </p>
                   ) : null}
@@ -419,59 +474,63 @@ export default function AddLinkModal({
                   폴더
                 </label>
 
-                <div className="flex items-center gap-2">
-                  <select
-                    value={folderId}
-                    onChange={(event) => setFolderId(event.target.value)}
-                    className="min-w-0 flex-1 appearance-none rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  >
-                    <option value="">미분류</option>
-                    {sortFolders(availableFolders).map((folder) => (
-                      <option key={folder.id} value={folder.id}>
-                        {folder.name}
-                      </option>
-                    ))}
-                  </select>
-
+                {isEditingFolderName ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={folderInputRef}
+                      value={folderDraftName}
+                      onChange={(event) => {
+                        setFolderDraftName(event.target.value);
+                        setFolderError("");
+                      }}
+                      onKeyDown={handleFolderNameKeyDown}
+                      placeholder="새 폴더 이름"
+                      className="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleConfirmFolderName()}
+                      disabled={creatingFolder}
+                      className="shrink-0 rounded-2xl bg-primary-500 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
+                    >
+                      {creatingFolder ? "확인 중..." : "확인"}
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowFolderComposer((current) => !current);
-                      setFolderError("");
-                    }}
-                    className="shrink-0 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3.5 text-sm font-semibold text-primary-600 transition hover:border-primary-300 hover:bg-primary-100"
+                    onClick={beginFolderNameEditing}
+                    className="flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left text-sm transition hover:border-primary-200 hover:bg-primary-50/40"
                   >
-                    추가
+                    <span className={folderId ? "text-gray-900" : "text-gray-500"}>
+                      {selectedFolderLabel}
+                    </span>
+                    <span className="text-xs font-semibold text-gray-400">
+                      탭해서 입력
+                    </span>
                   </button>
+                )}
+
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                  <FolderChip
+                    active={folderId === ""}
+                    onClick={() => handleSelectFolder("")}
+                  >
+                    미분류
+                  </FolderChip>
+                  {sortedFolders.map((folder) => (
+                    <FolderChip
+                      key={folder.id}
+                      active={folder.id === folderId}
+                      onClick={() => handleSelectFolder(folder.id)}
+                    >
+                      {folder.name}
+                    </FolderChip>
+                  ))}
                 </div>
 
-                {showFolderComposer ? (
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-                    <div className="flex gap-2">
-                      <input
-                        ref={folderInputRef}
-                        value={newFolderName}
-                        onChange={(event) => {
-                          setNewFolderName(event.target.value);
-                          setFolderError("");
-                        }}
-                        onKeyDown={handleFolderNameKeyDown}
-                        placeholder="새 폴더 이름"
-                        className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleCreateFolder()}
-                        disabled={creatingFolder}
-                        className="rounded-2xl bg-primary-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
-                      >
-                        {creatingFolder ? "확인 중..." : "확인"}
-                      </button>
-                    </div>
-                    {folderError ? (
-                      <p className="mt-2 pl-1 text-xs text-red-500">{folderError}</p>
-                    ) : null}
-                  </div>
+                {folderError ? (
+                  <p className="pl-1 text-xs text-red-500">{folderError}</p>
                 ) : null}
               </div>
 
@@ -499,6 +558,30 @@ export default function AddLinkModal({
   );
 }
 
+function FolderChip({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+        active
+          ? "bg-primary-50 text-primary-600 ring-1 ring-primary-200"
+          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function upsertFolder(folders: Folder[], nextFolder: Folder) {
   const withoutExisting = folders.filter((folder) => folder.id !== nextFolder.id);
   return [...withoutExisting, nextFolder];
@@ -506,6 +589,10 @@ function upsertFolder(folders: Folder[], nextFolder: Folder) {
 
 function sortFolders(folders: Folder[]) {
   return [...folders].sort((left, right) => left.sort_order - right.sort_order);
+}
+
+function normalizeFolderName(value: string) {
+  return value.trim().toLocaleLowerCase();
 }
 
 function Spinner({ className }: { className?: string }) {
@@ -526,7 +613,7 @@ function Spinner({ className }: { className?: string }) {
       <path
         className="opacity-75"
         fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+        d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4Z"
       />
     </svg>
   );
