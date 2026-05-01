@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import ConfirmModal from "@/components/ui/ConfirmModal";
 import BottomSheetShell from "@/components/ui/BottomSheetShell";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import type { FolderWithCount } from "@/types";
 
 interface FolderGridProps {
@@ -15,6 +15,8 @@ interface FolderGridProps {
 }
 
 type SheetMode = "actions" | "rename";
+
+const FOLDER_EMOJIS = ["📁", "💜", "🐱", "📌", "📝", "📚", "🌿", "✨", "🎧", "🔖"];
 
 export default function FolderGrid({
   folders,
@@ -118,8 +120,8 @@ export default function FolderGrid({
 
   if (folders.length === 0) {
     return (
-      <div className="py-10 text-center">
-        <p className="text-sm font-semibold text-gray-500">아직 폴더가 없어요</p>
+      <div className="py-8">
+        <p className="text-sm font-semibold text-gray-500">아직 폴더가 없어요.</p>
         <p className="mt-1 text-xs text-gray-400">
           오른쪽 위에서 새 폴더를 만들어 보세요.
         </p>
@@ -129,22 +131,22 @@ export default function FolderGrid({
 
   return (
     <>
-      <div className="divide-y divide-gray-100 bg-white">
+      <div className="divide-y divide-gray-100">
         {folders.map((folder) => (
-          <div key={folder.id} className="flex items-center gap-2 py-2.5">
+          <div key={folder.id} className="flex min-h-12 items-center gap-1 py-1">
             <button
               type="button"
               onClick={() => router.push(`/links?folder=${folder.id}`)}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-1 py-2 text-left transition hover:bg-gray-50"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-2 text-left transition hover:bg-gray-50 active:bg-gray-100"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-gray-400">
-                <FolderIcon />
-              </div>
+              <span aria-hidden="true" className="shrink-0 text-lg leading-none">
+                {getFolderEmoji(folder)}
+              </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-gray-900">
+                <p className="truncate text-[15px] font-semibold text-gray-900">
                   {folder.name}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-400">
+                <p className="mt-0.5 text-[11px] text-gray-400">
                   {folder.link_count > 0 ? `${folder.link_count}개` : "비어 있음"}
                 </p>
               </div>
@@ -153,7 +155,7 @@ export default function FolderGrid({
             <button
               type="button"
               onClick={() => openActionSheet(folder)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-300 transition hover:bg-gray-100 hover:text-gray-500 active:bg-gray-100"
               aria-label={`${folder.name} 옵션 열기`}
             >
               <DotsIcon />
@@ -162,7 +164,7 @@ export default function FolderGrid({
             <button
               type="button"
               onClick={() => onAddLink(folder.id)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 hover:text-gray-700"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-primary-500 transition hover:bg-primary-50 active:bg-primary-100"
               aria-label={`${folder.name}에 링크 추가`}
             >
               <PlusIcon />
@@ -186,7 +188,7 @@ export default function FolderGrid({
                     {activeFolder.name}
                   </h2>
                   <p className="mb-5 text-sm text-gray-400">
-                    폴더에 필요한 작업을 선택해 주세요.
+                    폴더에서 필요한 작업을 선택해 주세요.
                   </p>
 
                   <div className="space-y-2">
@@ -250,7 +252,7 @@ export default function FolderGrid({
                         disabled={actionLoading}
                         className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50 shadow-md shadow-primary-500/25"
                       >
-                        {actionLoading ? "저장 중..." : "확인"}
+                        {actionLoading ? "확인 중..." : "확인"}
                       </button>
                     </div>
                   </div>
@@ -302,21 +304,15 @@ function ActionButton({
   );
 }
 
-function FolderIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Z" />
-    </svg>
-  );
+function getFolderEmoji(folder: FolderWithCount) {
+  const key = `${folder.id}:${folder.name}`;
+  let hash = 0;
+
+  for (let index = 0; index < key.length; index += 1) {
+    hash = (hash * 31 + key.charCodeAt(index)) % FOLDER_EMOJIS.length;
+  }
+
+  return FOLDER_EMOJIS[hash];
 }
 
 function DotsIcon() {
