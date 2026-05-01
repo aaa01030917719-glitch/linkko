@@ -41,7 +41,7 @@ export default function FolderManager({ onCreate }: FolderManagerProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-200"
+        className="px-0 py-1 text-sm font-semibold text-primary-500 transition hover:text-primary-600 active:text-primary-700"
       >
         새 폴더
       </button>

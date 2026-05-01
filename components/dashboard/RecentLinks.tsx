@@ -12,7 +12,7 @@ export default function RecentLinks({ links, loading }: RecentLinksProps) {
   if (loading) {
     return (
       <div className="space-y-1">
-        {[...Array(4)].map((_, index) => (
+        {[...Array(5)].map((_, index) => (
           <div
             key={index}
             className="flex min-h-12 items-center gap-3 py-2 animate-pulse"
@@ -32,7 +32,9 @@ export default function RecentLinks({ links, loading }: RecentLinksProps) {
   if (links.length === 0) {
     return (
       <div className="py-8">
-        <p className="text-sm font-semibold text-gray-500">아직 저장한 링크가 없어요.</p>
+        <p className="text-sm font-semibold text-gray-500">
+          아직 저장한 링크가 없어요.
+        </p>
         <p className="mt-1 text-xs text-gray-400">
           아래 버튼으로 첫 링크를 저장해 보세요.
         </p>
@@ -41,46 +43,48 @@ export default function RecentLinks({ links, loading }: RecentLinksProps) {
   }
 
   return (
-    <div className="divide-y divide-gray-100">
-      {links.map((link) => {
-        const title = link.custom_title || link.preview_title || extractDomain(link.url);
-        const domain = extractDomain(link.url);
-        const platform = getPlatformType(link.url, link.preview_site_name);
+    <div className="space-y-3">
+      <div className="divide-y divide-gray-100">
+        {links.map((link) => {
+          const title =
+            link.custom_title || link.preview_title || extractDomain(link.url);
+          const domain = extractDomain(link.url);
+          const platform = getPlatformType(link.url, link.preview_site_name);
 
-        return (
-          <Link
-            key={link.id}
-            href={`/links/${link.id}`}
-            className="flex min-h-12 items-center gap-3 py-2 transition hover:bg-gray-50 active:bg-gray-100"
-          >
-            <div className={getPlatformIconClassName(platform)}>
-              <PlatformIcon type={platform} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-medium text-gray-900">
-                {title}
-              </p>
-              <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-400">
-                <span className="truncate">{domain}</span>
-                <span aria-hidden="true">•</span>
-                <span>{timeAgo(link.created_at)}</span>
+          return (
+            <Link
+              key={link.id}
+              href={`/links/${link.id}`}
+              className="flex min-h-12 items-center gap-3 py-2 transition hover:bg-gray-50 active:bg-gray-100"
+            >
+              <div className={getPlatformIconClassName(platform)}>
+                <PlatformIcon type={platform} />
               </div>
-            </div>
 
-            <div className="shrink-0 text-gray-300">
-              <ArrowIcon />
-            </div>
-          </Link>
-        );
-      })}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-medium text-gray-900">
+                  {title}
+                </p>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <span className="truncate">{domain}</span>
+                  <span aria-hidden="true">&bull;</span>
+                  <span>{timeAgo(link.created_at)}</span>
+                </div>
+              </div>
+
+              <div className="shrink-0 text-gray-300">
+                <ArrowIcon />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
 
       <Link
         href="/links"
-        className="flex min-h-11 items-center justify-between py-2 text-sm font-medium text-primary-500 transition hover:text-primary-600"
+        className="inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 active:bg-gray-100"
       >
-        <span>전체 링크 보기</span>
-        <ArrowIcon />
+        전체 링크 보기
       </Link>
     </div>
   );
