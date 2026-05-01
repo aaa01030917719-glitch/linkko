@@ -9,10 +9,12 @@ import AddLinkFab from "@/components/link/AddLinkFab";
 import AddLinkModal from "@/components/link/AddLinkModal";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import Toast from "@/components/ui/Toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useFolders } from "@/hooks/useFolders";
 import { useLinks } from "@/hooks/useLinks";
 import { usePendingSharedLink } from "@/hooks/usePendingSharedLink";
 import { useToast } from "@/hooks/useToast";
+import { getUserDisplayName } from "@/lib/utils/user";
 import { isWithinDays } from "@/lib/utils/time";
 import type { Link } from "@/types";
 
@@ -25,6 +27,7 @@ export default function DashboardClient() {
   const [initialFolderId, setInitialFolderId] = useState<string | null | undefined>(
     undefined,
   );
+  const { user } = useAuth();
   const { toast, showToast } = useToast();
   const { clearPendingSharedLink, sharedText, sharedUrl } = usePendingSharedLink();
 
@@ -45,6 +48,7 @@ export default function DashboardClient() {
     refetch: refetchLinks,
   } = useLinks();
 
+  const displayName = getUserDisplayName(user);
   const newLinksCount = useMemo(
     () => links.filter((link) => isWithinDays(link.created_at, 7)).length,
     [links],
@@ -104,17 +108,8 @@ export default function DashboardClient() {
     <>
       <div className="space-y-7 pb-36">
         <header className="pt-2">
-          <p className="text-base font-medium text-gray-500">안녕하세요</p>
-          <h2 className="mt-1 text-2xl font-bold leading-tight text-gray-900">
-            링크{" "}
-            <span className="text-primary-500">
-              {loading ? (
-                <span className="inline-block h-7 w-8 animate-pulse rounded-lg bg-gray-100 align-middle" />
-              ) : (
-                `${links.length}개`
-              )}
-            </span>{" "}
-            저장됨
+          <h2 className="text-2xl font-bold leading-tight text-gray-900">
+            {displayName ? `안녕하세요, ${displayName}님 👋` : "안녕하세요 👋"}
           </h2>
         </header>
 
