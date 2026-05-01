@@ -63,7 +63,7 @@ export default function MeClient() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-        <MenuItem label="앱 정보" sub="링크코 v0.1.0" />
+        <MenuItem label="앱 정보" sub="링코 v0.1.0" />
         <div className="h-px bg-gray-100" />
         <button
           onClick={handleLogout}

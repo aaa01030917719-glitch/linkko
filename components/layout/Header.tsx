@@ -30,7 +30,7 @@ export default function Header() {
             </button>
           )}
           <span className="text-base font-bold text-gray-900 tracking-tight">
-            링크코
+            링코
           </span>
         </div>
         <button

@@ -1,0 +1,106 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+interface BottomSheetShellProps {
+  children: React.ReactNode;
+  className?: string;
+  contentClassName?: string;
+}
+
+export default function BottomSheetShell({
+  children,
+  className = "",
+  contentClassName = "",
+}: BottomSheetShellProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) {
+      return;
+    }
+
+    const { visualViewport } = window;
+
+    const updateKeyboardOffset = () => {
+      const nextOffset = Math.max(
+        0,
+        window.innerHeight - visualViewport.height - visualViewport.offsetTop,
+      );
+
+      setKeyboardOffset(nextOffset);
+    };
+
+    updateKeyboardOffset();
+    visualViewport.addEventListener("resize", updateKeyboardOffset);
+    visualViewport.addEventListener("scroll", updateKeyboardOffset);
+
+    return () => {
+      visualViewport.removeEventListener("resize", updateKeyboardOffset);
+      visualViewport.removeEventListener("scroll", updateKeyboardOffset);
+    };
+  }, []);
+
+  useEffect(() => {
+    const currentSheet = sheetRef.current;
+
+    if (!currentSheet) {
+      return;
+    }
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+
+      if (!target || typeof target.scrollIntoView !== "function") {
+        return;
+      }
+
+      window.setTimeout(() => {
+        target.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+      }, 120);
+    };
+
+    currentSheet.addEventListener("focusin", handleFocusIn);
+
+    return () => {
+      currentSheet.removeEventListener("focusin", handleFocusIn);
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-x-0 bottom-0 z-50 px-3"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)",
+        transform:
+          keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : undefined,
+        transition: "transform 180ms ease-out",
+      }}
+    >
+      <div
+        ref={sheetRef}
+        className={`mx-auto mb-3 w-full max-w-2xl overflow-hidden rounded-t-3xl bg-white shadow-2xl ${className}`}
+        style={{ maxHeight: "78vh" }}
+      >
+        <div className="flex justify-center pb-1 pt-3">
+          <div className="h-1 w-10 rounded-full bg-gray-200" />
+        </div>
+
+        <div
+          className={`overflow-y-auto ${contentClassName}`}
+          style={{
+            maxHeight: "calc(78vh - 16px)",
+            paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}

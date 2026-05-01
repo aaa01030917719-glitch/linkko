@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import BottomSheetShell from "@/components/ui/BottomSheetShell";
 import type { Folder, Link } from "@/types";
 
 interface EditLinkModalProps {
@@ -43,12 +44,8 @@ export default function EditLinkModal({ link, folders, onClose, onSave }: EditLi
     <>
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl">
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-200" />
-        </div>
-
-        <div className="px-5 pb-8 pt-3">
+      <BottomSheetShell>
+        <div className="px-5 pb-2 pt-3">
           <h2 className="text-lg font-bold text-gray-900 mb-5">링크 수정</h2>
 
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -104,7 +101,7 @@ export default function EditLinkModal({ link, folders, onClose, onSave }: EditLi
             </div>
           </form>
         </div>
-      </div>
+      </BottomSheetShell>
     </>
   );
 }

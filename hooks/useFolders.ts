@@ -48,15 +48,57 @@ export function useFolders() {
   }
 
   async function renameFolder(id: string, name: string) {
-    const { error } = await supabase.from("folders").update({ name }).eq("id", id);
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error("폴더 이름을 입력해 주세요.");
+
+    const { error } = await supabase
+      .from("folders")
+      .update({ name: trimmedName })
+      .eq("id", id);
     if (error) throw error;
-    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name } : f)));
+    setFolders((prev) =>
+      prev.map((folder) =>
+        folder.id === id ? { ...folder, name: trimmedName } : folder,
+      ),
+    );
   }
 
   async function deleteFolder(id: string) {
     const { error } = await supabase.from("folders").delete().eq("id", id);
     if (error) throw error;
     setFolders((prev) => prev.filter((f) => f.id !== id));
+  }
+
+  async function pinFolder(id: string) {
+    const currentFolders = [...folders].sort(
+      (left, right) => left.sort_order - right.sort_order,
+    );
+    const targetFolder = currentFolders.find((folder) => folder.id === id);
+
+    if (!targetFolder) {
+      return;
+    }
+
+    const reorderedFolders = [
+      targetFolder,
+      ...currentFolders.filter((folder) => folder.id !== id),
+    ].map((folder, index) => ({
+      ...folder,
+      sort_order: index,
+    }));
+
+    for (const folder of reorderedFolders) {
+      const { error } = await supabase
+        .from("folders")
+        .update({ sort_order: folder.sort_order })
+        .eq("id", folder.id);
+
+      if (error) {
+        throw error;
+      }
+    }
+
+    setFolders(reorderedFolders);
   }
 
   useEffect(() => {
@@ -70,6 +112,7 @@ export function useFolders() {
     createFolder,
     renameFolder,
     deleteFolder,
+    pinFolder,
     refetch: fetchFolders,
   };
 }
