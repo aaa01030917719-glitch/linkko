@@ -18,6 +18,11 @@ interface AddLinkModalProps {
 }
 
 type Step = "url" | "detail";
+type FolderResolutionResult =
+  | { ok: true; folderId: string | null }
+  | { ok: false };
+
+const UNCATEGORIZED_LABEL = "미분류";
 
 function buildMemoCandidate(sharedText?: string | null, sharedUrl?: string | null) {
   const trimmedSharedText = sharedText?.trim() || "";
@@ -84,7 +89,7 @@ export default function AddLinkModal({
     [folderId, sortedFolders],
   );
 
-  const selectedFolderLabel = selectedFolder?.name ?? "미분류";
+  const selectedFolderLabel = selectedFolder?.name ?? UNCATEGORIZED_LABEL;
 
   useEffect(() => {
     setAvailableFolders(folders);
@@ -110,7 +115,7 @@ export default function AddLinkModal({
     }, 100);
 
     return () => window.clearTimeout(timer);
-  }, [initialFolderId, initialUrl, open]);
+  }, [folders, initialFolderId, initialUrl, open]);
 
   useEffect(() => {
     if (!open) {
@@ -222,8 +227,68 @@ export default function AddLinkModal({
     await prepareLinkDetails(url, sharedMemoCandidate);
   }
 
+  async function resolveFolderSelection(): Promise<FolderResolutionResult> {
+    if (!isEditingFolderName) {
+      return { ok: true, folderId: folderId || null };
+    }
+
+    const trimmedName = folderDraftName.trim();
+
+    if (!trimmedName) {
+      setFolderError("폴더 이름을 입력해 주세요.");
+      return { ok: false };
+    }
+
+    if (trimmedName === UNCATEGORIZED_LABEL) {
+      setFolderId("");
+      setFolderDraftName("");
+      setIsEditingFolderName(false);
+      setFolderError("");
+      return { ok: true, folderId: null };
+    }
+
+    const existingFolder = sortedFolders.find(
+      (folder) => normalizeFolderName(folder.name) === normalizeFolderName(trimmedName),
+    );
+
+    if (existingFolder) {
+      setFolderId(existingFolder.id);
+      setFolderDraftName(existingFolder.name);
+      setIsEditingFolderName(false);
+      setFolderError("");
+      return { ok: true, folderId: existingFolder.id };
+    }
+
+    setCreatingFolder(true);
+    setFolderError("");
+
+    try {
+      const createdFolder = await onCreateFolder(trimmedName);
+
+      setAvailableFolders((currentFolders) =>
+        sortFolders(upsertFolder(currentFolders, createdFolder)),
+      );
+      setFolderId(createdFolder.id);
+      setFolderDraftName(createdFolder.name);
+      setIsEditingFolderName(false);
+      return { ok: true, folderId: createdFolder.id };
+    } catch {
+      setFolderError("폴더를 만들지 못했어요. 다시 시도해 주세요.");
+      return { ok: false };
+    } finally {
+      setCreatingFolder(false);
+    }
+  }
+
   async function handleSave(event: React.FormEvent) {
     event.preventDefault();
+
+    const resolvedFolder = await resolveFolderSelection();
+
+    if (!resolvedFolder.ok) {
+      return;
+    }
+
     setSavingLink(true);
 
     try {
@@ -231,7 +296,7 @@ export default function AddLinkModal({
         url,
         custom_title: customTitle || null,
         memo: memo || null,
-        folder_id: folderId || null,
+        folder_id: resolvedFolder.folderId,
         preview_title: preview?.title ?? null,
         preview_description: preview?.description ?? null,
         preview_image: preview?.image ?? null,
@@ -249,50 +314,7 @@ export default function AddLinkModal({
   }
 
   async function handleConfirmFolderName() {
-    const trimmedName = folderDraftName.trim();
-
-    if (!trimmedName) {
-      setFolderError("폴더 이름을 입력해 주세요.");
-      return;
-    }
-
-    if (trimmedName === "미분류") {
-      setFolderId("");
-      setFolderDraftName("");
-      setIsEditingFolderName(false);
-      setFolderError("");
-      return;
-    }
-
-    const existingFolder = sortedFolders.find(
-      (folder) => normalizeFolderName(folder.name) === normalizeFolderName(trimmedName),
-    );
-
-    if (existingFolder) {
-      setFolderId(existingFolder.id);
-      setFolderDraftName(existingFolder.name);
-      setIsEditingFolderName(false);
-      setFolderError("");
-      return;
-    }
-
-    setCreatingFolder(true);
-    setFolderError("");
-
-    try {
-      const createdFolder = await onCreateFolder(trimmedName);
-
-      setAvailableFolders((currentFolders) =>
-        sortFolders(upsertFolder(currentFolders, createdFolder)),
-      );
-      setFolderId(createdFolder.id);
-      setFolderDraftName(createdFolder.name);
-      setIsEditingFolderName(false);
-    } catch {
-      setFolderError("폴더를 만들지 못했어요. 다시 시도해 주세요.");
-    } finally {
-      setCreatingFolder(false);
-    }
+    await resolveFolderSelection();
   }
 
   function handleFolderNameKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -388,7 +410,7 @@ export default function AddLinkModal({
                   <button
                     type="submit"
                     disabled={!url || fetchingPreview}
-                    className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-40 shadow-md shadow-primary-500/25"
+                    className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary-500/25 transition hover:bg-primary-600 disabled:opacity-40"
                   >
                     {fetchingPreview ? (
                       <span className="flex items-center justify-center gap-2">
@@ -506,7 +528,7 @@ export default function AddLinkModal({
                       {selectedFolderLabel}
                     </span>
                     <span className="text-xs font-semibold text-gray-400">
-                      탭해서 입력
+                      눌러서 입력
                     </span>
                   </button>
                 )}
@@ -516,7 +538,7 @@ export default function AddLinkModal({
                     active={folderId === ""}
                     onClick={() => handleSelectFolder("")}
                   >
-                    미분류
+                    {UNCATEGORIZED_LABEL}
                   </FolderChip>
                   {sortedFolders.map((folder) => (
                     <FolderChip
@@ -544,8 +566,8 @@ export default function AddLinkModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={savingLink}
-                  className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50 shadow-md shadow-primary-500/25"
+                  disabled={savingLink || creatingFolder}
+                  className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary-500/25 transition hover:bg-primary-600 disabled:opacity-50"
                 >
                   {savingLink ? <Spinner className="mx-auto" /> : "저장"}
                 </button>

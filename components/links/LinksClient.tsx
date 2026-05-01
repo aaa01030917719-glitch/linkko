@@ -62,6 +62,7 @@ export default function LinksClient() {
   async function handleAdd(payload: Partial<Link>) {
     try {
       await addLink(payload);
+      await Promise.all([refetchLinks(), refetchFolders()]);
       clearSharedEntry();
       showToast("링크가 저장됐어요.");
       setAddOpen(false);
@@ -148,8 +149,8 @@ export default function LinksClient() {
           <ErrorBanner
             message={linksError ?? foldersError ?? "데이터를 불러오지 못했어요."}
             onRetry={() => {
-              refetchLinks();
-              refetchFolders();
+              void refetchLinks();
+              void refetchFolders();
             }}
           />
         )}
@@ -182,10 +183,10 @@ export default function LinksClient() {
             <p className="text-sm font-medium text-gray-500">
               {selectedFolder === null
                 ? "미분류 링크가 아직 없어요."
-                : "저장된 링크가 아직 없어요."}
+                : "저장한 링크가 아직 없어요."}
             </p>
             <p className="mt-1 text-xs text-gray-400">
-              아래 버튼으로 새 링크를 추가해 보세요.
+              아래 버튼으로 첫 링크를 추가해 보세요.
             </p>
           </div>
         ) : (

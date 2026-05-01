@@ -68,6 +68,7 @@ export default function DashboardClient() {
   async function handleAddLink(payload: Partial<Link>) {
     try {
       await addLink(payload);
+      await Promise.all([refetchLinks(), refetchFolders()]);
       clearPendingSharedLink();
       showToast("링크가 저장됐어요.");
       setInitialFolderId(undefined);
@@ -81,6 +82,7 @@ export default function DashboardClient() {
     if (!sharedUrl && !sharedText) {
       clearPendingSharedLink();
     }
+
     setInitialFolderId(nextFolderId);
     setAddOpen(true);
   }
@@ -113,8 +115,8 @@ export default function DashboardClient() {
           <ErrorBanner
             message="데이터를 불러오지 못했어요."
             onRetry={() => {
-              refetchLinks();
-              refetchFolders();
+              void refetchLinks();
+              void refetchFolders();
             }}
           />
         )}
