@@ -16,6 +16,10 @@ import { useToast } from "@/hooks/useToast";
 import { isWithinDays } from "@/lib/utils/time";
 import type { Link } from "@/types";
 
+function getSaveSuccessMessage(folderName?: string | null) {
+  return folderName ? `${folderName} 폴더에 저장했어요` : "링크를 저장했어요";
+}
+
 export default function DashboardClient() {
   const [addOpen, setAddOpen] = useState(false);
   const [initialFolderId, setInitialFolderId] = useState<string | null | undefined>(
@@ -65,14 +69,17 @@ export default function DashboardClient() {
     setAddOpen(true);
   }, [sharedText, sharedUrl]);
 
-  async function handleAddLink(payload: Partial<Link>) {
+  async function handleAddLink(
+    payload: Partial<Link>,
+    options?: { folderName?: string | null },
+  ) {
     try {
       await addLink(payload);
-      await Promise.all([refetchLinks(), refetchFolders()]);
-      clearPendingSharedLink();
-      showToast("링크가 저장됐어요.");
-      setInitialFolderId(undefined);
       setAddOpen(false);
+      setInitialFolderId(undefined);
+      clearPendingSharedLink();
+      await Promise.all([refetchLinks(), refetchFolders()]);
+      showToast(getSaveSuccessMessage(options?.folderName));
     } catch {
       showToast("링크를 저장하지 못했어요. 다시 시도해 주세요.");
     }

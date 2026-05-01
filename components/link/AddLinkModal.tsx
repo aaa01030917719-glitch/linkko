@@ -13,13 +13,16 @@ interface AddLinkModalProps {
   initialFolderId?: string | null;
   initialSharedText?: string | null;
   initialUrl?: string | null;
-  onAdd: (payload: Partial<Link>) => Promise<void>;
+  onAdd: (
+    payload: Partial<Link>,
+    options?: { folderName?: string | null },
+  ) => Promise<void>;
   onCreateFolder: (name: string) => Promise<Folder>;
 }
 
 type Step = "url" | "detail";
 type FolderResolutionResult =
-  | { ok: true; folderId: string | null }
+  | { ok: true; folderId: string | null; folderName: string | null }
   | { ok: false };
 
 const UNCATEGORIZED_LABEL = "미분류";
@@ -229,7 +232,11 @@ export default function AddLinkModal({
 
   async function resolveFolderSelection(): Promise<FolderResolutionResult> {
     if (!isEditingFolderName) {
-      return { ok: true, folderId: folderId || null };
+      return {
+        ok: true,
+        folderId: folderId || null,
+        folderName: selectedFolder?.name ?? null,
+      };
     }
 
     const trimmedName = folderDraftName.trim();
@@ -244,7 +251,7 @@ export default function AddLinkModal({
       setFolderDraftName("");
       setIsEditingFolderName(false);
       setFolderError("");
-      return { ok: true, folderId: null };
+      return { ok: true, folderId: null, folderName: null };
     }
 
     const existingFolder = sortedFolders.find(
@@ -256,7 +263,11 @@ export default function AddLinkModal({
       setFolderDraftName(existingFolder.name);
       setIsEditingFolderName(false);
       setFolderError("");
-      return { ok: true, folderId: existingFolder.id };
+      return {
+        ok: true,
+        folderId: existingFolder.id,
+        folderName: existingFolder.name,
+      };
     }
 
     setCreatingFolder(true);
@@ -271,7 +282,11 @@ export default function AddLinkModal({
       setFolderId(createdFolder.id);
       setFolderDraftName(createdFolder.name);
       setIsEditingFolderName(false);
-      return { ok: true, folderId: createdFolder.id };
+      return {
+        ok: true,
+        folderId: createdFolder.id,
+        folderName: createdFolder.name,
+      };
     } catch {
       setFolderError("폴더를 만들지 못했어요. 다시 시도해 주세요.");
       return { ok: false };
@@ -301,6 +316,8 @@ export default function AddLinkModal({
         preview_description: preview?.description ?? null,
         preview_image: preview?.image ?? null,
         preview_site_name: preview?.site_name ?? null,
+      }, {
+        folderName: resolvedFolder.folderName,
       });
     } finally {
       setSavingLink(false);

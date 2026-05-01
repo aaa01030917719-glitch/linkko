@@ -16,6 +16,10 @@ import { usePendingSharedLink } from "@/hooks/usePendingSharedLink";
 import { useToast } from "@/hooks/useToast";
 import type { Link } from "@/types";
 
+function getSaveSuccessMessage(folderName?: string | null) {
+  return folderName ? `${folderName} 폴더에 저장했어요` : "링크를 저장했어요";
+}
+
 export default function LinksClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -59,13 +63,16 @@ export default function LinksClient() {
     setAddOpen(true);
   }, [sharedText, sharedUrl]);
 
-  async function handleAdd(payload: Partial<Link>) {
+  async function handleAdd(
+    payload: Partial<Link>,
+    options?: { folderName?: string | null },
+  ) {
     try {
       await addLink(payload);
-      await Promise.all([refetchLinks(), refetchFolders()]);
-      clearSharedEntry();
-      showToast("링크가 저장됐어요.");
       setAddOpen(false);
+      clearSharedEntry();
+      await Promise.all([refetchLinks(), refetchFolders()]);
+      showToast(getSaveSuccessMessage(options?.folderName));
     } catch {
       showToast("링크를 저장하지 못했어요. 다시 시도해 주세요.");
     }
