@@ -25,7 +25,6 @@ interface SaveOptions {
   folderName?: string | null;
 }
 
-type LinkFilterType = "all" | "uncategorized" | "favorites" | "folder";
 type FolderSheetMode = "actions" | "rename";
 
 function getSaveSuccessMessage(folderName?: string | null) {
@@ -50,44 +49,30 @@ function sortLinksByFavoriteAndRecency(
   });
 }
 
-function getFilterLabel(type: LinkFilterType, folderName?: string | null) {
-  if (type === "uncategorized") {
-    return "미분류";
-  }
+function sortFoldersByFavoriteAndOrder(
+  sourceFolders: Folder[],
+  favoriteIds: Set<string>,
+) {
+  return [...sourceFolders].sort((left, right) => {
+    const favoriteDiff =
+      Number(favoriteIds.has(right.id)) - Number(favoriteIds.has(left.id));
 
-  if (type === "favorites") {
-    return "즐겨찾기";
-  }
+    if (favoriteDiff !== 0) {
+      return favoriteDiff;
+    }
 
-  if (type === "folder") {
-    return folderName || "폴더";
-  }
+    if (left.sort_order !== right.sort_order) {
+      return left.sort_order - right.sort_order;
+    }
 
-  return "전체";
-}
-
-function getEmptyStateMessage(type: LinkFilterType, folderName?: string | null) {
-  if (type === "favorites") {
-    return "즐겨찾기한 링크가 아직 없어요.";
-  }
-
-  if (type === "uncategorized") {
-    return "미분류 링크가 아직 없어요.";
-  }
-
-  if (type === "folder") {
-    return `${folderName || "선택한 폴더"}에 저장된 링크가 아직 없어요.`;
-  }
-
-  return "저장한 링크가 아직 없어요.";
+    return left.name.localeCompare(right.name, "ko");
+  });
 }
 
 export default function LinksClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderParam = searchParams.get("folder");
-  const favoritesParam = searchParams.get("favorites") === "1";
-  const uncategorizedParam = searchParams.get("uncategorized") === "1";
   const querySharedText = searchParams.get("sharedText");
   const querySharedUrl = searchParams.get("sharedUrl");
 
@@ -109,6 +94,10 @@ export default function LinksClient() {
     favoriteIds: favoriteLinkIds,
     toggleFavorite: toggleFavoriteLink,
   } = useFavoriteIds("links", user?.id ?? null);
+  const {
+    favoriteIds: favoriteFolderIds,
+    toggleFavorite: toggleFavoriteFolder,
+  } = useFavoriteIds("folders", user?.id ?? null);
   const { clearPendingSharedLink, sharedText, sharedUrl } = usePendingSharedLink({
     text: querySharedText,
     url: querySharedUrl,
@@ -129,51 +118,23 @@ export default function LinksClient() {
     [folderParam, folders],
   );
 
-  const filterType: LinkFilterType = favoritesParam
-    ? "favorites"
-    : uncategorizedParam
-      ? "uncategorized"
-      : folderParam
-        ? "folder"
-        : "all";
-
-  const activeFolderId =
-    filterType === "folder"
-      ? folderParam
-      : filterType === "uncategorized"
-        ? null
-        : undefined;
-
   const {
     links,
     loading,
     error: linksError,
     addLink,
     refetch: refetchLinks,
-  } = useLinks(activeFolderId);
+  } = useLinks(currentFolder ? currentFolder.id : undefined);
 
   const sortedFolders = useMemo(
-    () =>
-      [...folders].sort((left, right) => {
-        if (left.sort_order !== right.sort_order) {
-          return left.sort_order - right.sort_order;
-        }
-
-        return left.name.localeCompare(right.name, "ko");
-      }),
-    [folders],
+    () => sortFoldersByFavoriteAndOrder(folders, favoriteFolderIds),
+    [favoriteFolderIds, folders],
   );
 
-  const visibleLinks = useMemo(() => {
-    const filteredLinks =
-      filterType === "favorites"
-        ? links.filter((link) => favoriteLinkIds.has(link.id))
-        : links;
-
-    return sortLinksByFavoriteAndRecency(filteredLinks, favoriteLinkIds);
-  }, [favoriteLinkIds, filterType, links]);
-
-  const currentFilterLabel = getFilterLabel(filterType, currentFolder?.name);
+  const visibleLinks = useMemo(
+    () => sortLinksByFavoriteAndRecency(links, favoriteLinkIds),
+    [favoriteLinkIds, links],
+  );
 
   useEffect(() => {
     if (!sharedUrl && !sharedText) {
@@ -182,6 +143,12 @@ export default function LinksClient() {
 
     setAddOpen(true);
   }, [sharedText, sharedUrl]);
+
+  useEffect(() => {
+    if (folderParam && folders.length > 0 && !currentFolder) {
+      router.replace("/links", { scroll: false });
+    }
+  }, [currentFolder, folderParam, folders.length, router]);
 
   useEffect(() => {
     if (!folderSheetOpen || folderSheetMode !== "rename") {
@@ -215,10 +182,7 @@ export default function LinksClient() {
     });
   }, [currentFolder, user?.id]);
 
-  function buildLinksPath(nextFilter: {
-    type: LinkFilterType;
-    folderId?: string | null;
-  }) {
+  function buildLinksPath(nextFolderId?: string | null) {
     const nextSearchParams = new URLSearchParams();
 
     for (const key of ["shared", "sharedText", "sharedUrl", "t"]) {
@@ -228,23 +192,16 @@ export default function LinksClient() {
       }
     }
 
-    if (nextFilter.type === "favorites") {
-      nextSearchParams.set("favorites", "1");
-    } else if (nextFilter.type === "uncategorized") {
-      nextSearchParams.set("uncategorized", "1");
-    } else if (nextFilter.type === "folder" && nextFilter.folderId) {
-      nextSearchParams.set("folder", nextFilter.folderId);
+    if (nextFolderId) {
+      nextSearchParams.set("folder", nextFolderId);
     }
 
     const nextQuery = nextSearchParams.toString();
     return nextQuery ? `/links?${nextQuery}` : "/links";
   }
 
-  function replaceFilter(nextFilter: {
-    type: LinkFilterType;
-    folderId?: string | null;
-  }) {
-    router.replace(buildLinksPath(nextFilter), { scroll: false });
+  function replaceFilter(nextFolderId?: string | null) {
+    router.replace(buildLinksPath(nextFolderId), { scroll: false });
   }
 
   async function handleAdd(payload: Partial<LinkType>, options?: SaveOptions) {
@@ -340,9 +297,7 @@ export default function LinksClient() {
       return;
     }
 
-    router.replace(buildLinksPath({ type: filterType, folderId: folderParam }), {
-      scroll: false,
-    });
+    router.replace(buildLinksPath(currentFolder?.id), { scroll: false });
   }
 
   function handleOpenAddLink() {
@@ -362,18 +317,6 @@ export default function LinksClient() {
     if (openResult === "invalid") {
       showToast("열 수 없는 링크예요.");
     }
-  }
-
-  function getInitialFolderId() {
-    if (filterType === "folder" && folderParam) {
-      return folderParam;
-    }
-
-    if (filterType === "uncategorized") {
-      return null;
-    }
-
-    return undefined;
   }
 
   return (
@@ -400,7 +343,7 @@ export default function LinksClient() {
             className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5"
             onClick={() => setFilterSheetOpen(true)}
           >
-            <span>{currentFilterLabel}</span>
+            <span>{currentFolder?.name ?? "전체"}</span>
             <ChevronDownIcon />
           </FilterChip>
 
@@ -441,7 +384,9 @@ export default function LinksClient() {
           <div className="py-16 text-center">
             <p className="mb-3 text-lg font-semibold text-gray-400">Linkko</p>
             <p className="text-sm font-medium text-gray-500">
-              {getEmptyStateMessage(filterType, currentFolder?.name)}
+              {currentFolder
+                ? `${currentFolder.name}에 저장된 링크가 아직 없어요.`
+                : "저장한 링크가 아직 없어요."}
             </p>
             <p className="mt-1 text-xs text-gray-400">
               아래 버튼으로 첫 링크를 저장해 보세요.
@@ -473,7 +418,7 @@ export default function LinksClient() {
         open={addOpen}
         onClose={handleCloseAddLink}
         folders={folders}
-        initialFolderId={getInitialFolderId()}
+        initialFolderId={currentFolder?.id}
         initialSharedText={sharedText}
         initialUrl={sharedUrl}
         onAdd={handleAdd}
@@ -492,27 +437,11 @@ export default function LinksClient() {
 
             <div className="space-y-1">
               <FilterOptionButton
-                active={filterType === "all"}
+                active={!currentFolder}
                 label="전체"
                 onClick={() => {
                   setFilterSheetOpen(false);
-                  replaceFilter({ type: "all" });
-                }}
-              />
-              <FilterOptionButton
-                active={filterType === "uncategorized"}
-                label="미분류"
-                onClick={() => {
-                  setFilterSheetOpen(false);
-                  replaceFilter({ type: "uncategorized" });
-                }}
-              />
-              <FilterOptionButton
-                active={filterType === "favorites"}
-                label="즐겨찾기"
-                onClick={() => {
-                  setFilterSheetOpen(false);
-                  replaceFilter({ type: "favorites" });
+                  replaceFilter(undefined);
                 }}
               />
 
@@ -523,14 +452,16 @@ export default function LinksClient() {
                   </p>
                   <div className="space-y-1">
                     {sortedFolders.map((folder) => (
-                      <FilterOptionButton
+                      <FolderFilterRow
                         key={folder.id}
-                        active={filterType === "folder" && folder.id === folderParam}
+                        active={currentFolder?.id === folder.id}
+                        favorite={favoriteFolderIds.has(folder.id)}
                         label={folder.name}
-                        onClick={() => {
+                        onSelect={() => {
                           setFilterSheetOpen(false);
-                          replaceFilter({ type: "folder", folderId: folder.id });
+                          replaceFilter(folder.id);
                         }}
+                        onToggleFavorite={() => toggleFavoriteFolder(folder.id)}
                       />
                     ))}
                   </div>
@@ -676,7 +607,42 @@ function FilterOptionButton({
       }`}
     >
       <span>{label}</span>
-      {active ? <CheckIcon /> : <ChevronRightIcon />}
+      {active ? <CheckIcon /> : null}
+    </button>
+  );
+}
+
+function FolderFilterRow({
+  active,
+  favorite,
+  label,
+  onSelect,
+  onToggleFavorite,
+}: {
+  active: boolean;
+  favorite: boolean;
+  label: string;
+  onSelect: () => void;
+  onToggleFavorite: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-sm transition ${
+        active
+          ? "bg-primary-50 text-primary-600"
+          : "text-gray-700 hover:bg-gray-50"
+      }`}
+    >
+      <span className={`min-w-0 flex-1 truncate ${active ? "font-semibold" : "font-medium"}`}>
+        {label}
+      </span>
+      <FavoriteStarButton
+        active={favorite}
+        label={`${label} 폴더 즐겨찾기`}
+        onClick={onToggleFavorite}
+      />
     </button>
   );
 }

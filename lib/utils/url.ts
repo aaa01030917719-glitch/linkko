@@ -111,9 +111,17 @@ export function openLinkTarget(url: string): LinkOpenResult {
   }
 
   const normalizedUrl = normalizeUrlInput(url);
+  if (!normalizedUrl) {
+    return "invalid";
+  }
+
   const httpUrl = getHttpUrl(normalizedUrl);
 
   if (httpUrl) {
+    if (requestNativeExternalOpen(httpUrl)) {
+      return "external";
+    }
+
     window.open(httpUrl, "_blank", "noopener,noreferrer");
     return "opened";
   }
@@ -128,6 +136,10 @@ export function openLinkTarget(url: string): LinkOpenResult {
     return "external";
   }
 
-  window.location.assign(normalizedUrl);
-  return "external";
+  try {
+    window.location.assign(normalizedUrl);
+    return "external";
+  } catch {
+    return "invalid";
+  }
 }

@@ -181,7 +181,7 @@ export default function DashboardClient() {
             <h3 className="text-[13px] font-medium text-gray-600">즐겨찾는 링크</h3>
             {favoriteLinks.length > 5 ? (
               <Link
-                href="/links?favorites=1"
+                href="/links"
                 className="text-sm font-semibold text-gray-500 transition hover:text-gray-700"
               >
                 전체 보기
