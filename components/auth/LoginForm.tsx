@@ -195,7 +195,7 @@ export default function LoginForm() {
   return (
     <div className="w-full max-w-[400px]">
       <div className="mb-10 flex flex-col items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-500 shadow-lg shadow-primary-500/30">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary-500 shadow-sm shadow-primary-500/20">
           <LinkkoIcon />
         </div>
         <div className="text-center">
@@ -215,7 +215,7 @@ export default function LoginForm() {
       <button
         onClick={handleGoogleLogin}
         disabled={googleLoading || loading}
-        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white py-3.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:bg-gray-100 disabled:opacity-50"
       >
         {googleLoading ? <Spinner className="text-gray-400" /> : <GoogleIcon />}
         Google로 계속하기
@@ -274,14 +274,14 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={loading || googleLoading}
-          className="mt-1 w-full rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 active:bg-primary-700 disabled:opacity-50 shadow-md shadow-primary-500/25"
+          className="mt-1 w-full rounded-lg bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/20 transition hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:bg-primary-700 disabled:opacity-50"
         >
           {loading ? <Spinner className="mx-auto text-white" /> : "로그인"}
         </button>
       </form>
 
       {needsEmailConfirmation ? (
-        <div className="mt-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm text-gray-600 shadow-sm">
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white px-4 py-4 text-sm text-gray-600">
           <p className="font-semibold text-gray-900">인증 메일이 필요해요</p>
           <p className="mt-1">
             이메일 인증이 끝나지 않으면 로그인할 수 없어요. 받은편지함과 스팸함을
@@ -291,7 +291,7 @@ export default function LoginForm() {
             type="button"
             onClick={handleResendConfirmation}
             disabled={resendLoading}
-            className="mt-3 w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+            className="mt-3 w-full rounded-lg border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50"
           >
             {resendLoading ? (
               <Spinner className="mx-auto text-gray-400" />
@@ -317,8 +317,8 @@ export default function LoginForm() {
 
 function inputCls(hasError: boolean) {
   return [
-    "w-full rounded-2xl border bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400",
-    "outline-none transition",
+    "w-full rounded-lg border bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400",
+    "outline-none transition focus-visible:outline-none",
     hasError
       ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100"
       : "border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100",
@@ -346,7 +346,7 @@ function MessageBox({
         : "border-primary-100 bg-primary-50 text-primary-700";
 
   return (
-    <div className={`rounded-xl border px-4 py-3 text-sm ${styles} ${className}`}>
+    <div className={`rounded-lg border px-4 py-3 text-sm ${styles} ${className}`}>
       {children}
     </div>
   );

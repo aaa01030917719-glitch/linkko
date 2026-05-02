@@ -152,7 +152,7 @@ export default function SignupForm() {
   return (
     <div className="w-full max-w-[400px]">
       <div className="mb-10 flex flex-col items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-500 shadow-lg shadow-primary-500/30">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary-500 shadow-sm shadow-primary-500/20">
           <LinkkoIcon />
         </div>
         <div className="text-center">
@@ -168,7 +168,7 @@ export default function SignupForm() {
       <button
         onClick={handleGoogleLogin}
         disabled={googleLoading || loading}
-        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white py-3.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:bg-gray-100 disabled:opacity-50"
       >
         {googleLoading ? <Spinner className="text-gray-400" /> : <GoogleIcon />}
         Google로 계속하기
@@ -236,7 +236,7 @@ export default function SignupForm() {
         <button
           type="submit"
           disabled={loading || googleLoading}
-          className="mt-1 w-full rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary-500/25 transition hover:bg-primary-600 active:bg-primary-700 disabled:opacity-50"
+          className="mt-1 w-full rounded-lg bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/20 transition hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:bg-primary-700 disabled:opacity-50"
         >
           {loading ? <Spinner className="mx-auto text-white" /> : "회원가입"}
         </button>
@@ -257,8 +257,8 @@ export default function SignupForm() {
 
 function inputCls(hasError: boolean) {
   return [
-    "w-full rounded-2xl border bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400",
-    "outline-none transition",
+    "w-full rounded-lg border bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400",
+    "outline-none transition focus-visible:outline-none",
     hasError
       ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100"
       : "border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100",
@@ -281,7 +281,7 @@ function MessageBox({
       ? "border-red-100 bg-red-50 text-red-600"
       : "border-green-100 bg-green-50 text-green-700";
 
-  return <div className={`rounded-xl border px-4 py-3 text-sm ${styles}`}>{children}</div>;
+  return <div className={`rounded-lg border px-4 py-3 text-sm ${styles}`}>{children}</div>;
 }
 
 function Spinner({ className }: { className?: string }) {

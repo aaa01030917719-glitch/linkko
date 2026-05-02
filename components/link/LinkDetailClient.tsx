@@ -8,6 +8,8 @@ import EditLinkModal from "@/components/link/EditLinkModal";
 import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import BottomSheetShell from "@/components/ui/BottomSheetShell";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import FolderSelectSheet from "@/components/ui/FolderSelectSheet";
+import FolderSelectTrigger from "@/components/ui/FolderSelectTrigger";
 import Toast from "@/components/ui/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { recordRecentLink } from "@/hooks/useRecentActivity";
@@ -19,6 +21,9 @@ interface Props {
   id: string;
 }
 
+const UNCATEGORIZED_LABEL = "미분류";
+const UNCATEGORIZED_VALUE = "__uncategorized__";
+
 export default function LinkDetailClient({ id }: Props) {
   const [link, setLink] = useState<LinkType | null>(null);
   const [folder, setFolder] = useState<Folder | null>(null);
@@ -27,6 +32,7 @@ export default function LinkDetailClient({ id }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [movePickerOpen, setMovePickerOpen] = useState(false);
   const [moveFolderId, setMoveFolderId] = useState("");
   const [moveLoading, setMoveLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -34,6 +40,11 @@ export default function LinkDetailClient({ id }: Props) {
   const { user } = useAuth();
   const { toast, showToast } = useToast();
   const supabase = useMemo(() => createClient(), []);
+
+  const sortedFolders = useMemo(
+    () => [...folders].sort((left, right) => left.sort_order - right.sort_order),
+    [folders],
+  );
 
   useEffect(() => {
     async function load() {
@@ -48,6 +59,7 @@ export default function LinkDetailClient({ id }: Props) {
       if (linkData) {
         const nextLink = linkData as LinkType;
         setLink(nextLink);
+
         if (nextLink.folder_id) {
           const foundFolder = folderList.find(
             (nextFolder) => nextFolder.id === nextLink.folder_id,
@@ -81,10 +93,10 @@ export default function LinkDetailClient({ id }: Props) {
       setMoveFolderId(payload.folder_id ?? "");
     }
 
-    showToast("링크를 수정했어요");
+    showToast("링크를 수정했어요.");
   }
 
-  async function handleMoveLink() {
+  async function handleMoveLink(nextFolderId?: string | null) {
     if (!link) {
       return;
     }
@@ -92,10 +104,12 @@ export default function LinkDetailClient({ id }: Props) {
     setMoveLoading(true);
 
     try {
-      const nextFolderId = moveFolderId || null;
+      const resolvedFolderId =
+        nextFolderId === undefined ? moveFolderId || null : nextFolderId;
+
       const { error } = await supabase
         .from("links")
-        .update({ folder_id: nextFolderId })
+        .update({ folder_id: resolvedFolderId })
         .eq("id", link.id);
 
       if (error) {
@@ -103,15 +117,17 @@ export default function LinkDetailClient({ id }: Props) {
       }
 
       setLink((currentLink) =>
-        currentLink ? { ...currentLink, folder_id: nextFolderId } : null,
+        currentLink ? { ...currentLink, folder_id: resolvedFolderId } : null,
       );
       setFolder(
-        folders.find((nextFolder) => nextFolder.id === nextFolderId) ?? null,
+        folders.find((nextFolder) => nextFolder.id === resolvedFolderId) ?? null,
       );
+      setMoveFolderId(resolvedFolderId ?? "");
       setMoveOpen(false);
+      setMovePickerOpen(false);
       showToast(
-        nextFolderId
-          ? `${folders.find((nextFolder) => nextFolder.id === nextFolderId)?.name ?? "폴더"}로 옮겼어요`
+        resolvedFolderId
+          ? `${folders.find((nextFolder) => nextFolder.id === resolvedFolderId)?.name ?? "폴더"}로 옮겼어요`
           : "미분류로 옮겼어요",
       );
     } catch {
@@ -161,8 +177,8 @@ export default function LinkDetailClient({ id }: Props) {
         <div className="mb-5 flex justify-end">
           <div className="h-8 w-8 rounded-xl bg-gray-100" />
         </div>
-        <div className="h-48 rounded-3xl bg-gray-100" />
-        <div className="h-36 rounded-3xl bg-gray-100" />
+        <div className="h-48 rounded-xl bg-gray-100" />
+        <div className="h-36 rounded-xl bg-gray-100" />
       </div>
     );
   }
@@ -170,11 +186,8 @@ export default function LinkDetailClient({ id }: Props) {
   if (!link) {
     return (
       <div className="py-20 text-center">
-        <p className="mb-3 text-sm text-gray-400">링크를 찾을 수 없어요</p>
-        <button
-          onClick={() => router.back()}
-          className="text-sm text-primary-500"
-        >
+        <p className="mb-3 text-sm text-gray-400">링크를 찾을 수 없어요.</p>
+        <button onClick={() => router.back()} className="text-sm text-primary-500">
           돌아가기
         </button>
       </div>
@@ -194,14 +207,14 @@ export default function LinkDetailClient({ id }: Props) {
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-gray-300 transition hover:bg-gray-100 hover:text-gray-500 active:bg-gray-200"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-gray-300 transition hover:border-gray-200 hover:bg-white hover:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:bg-gray-100"
           aria-label="링크 메뉴"
         >
           <DotsIcon />
         </button>
       </div>
 
-      <div className="mb-3 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+      <div className="mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
         <PreviewThumbnail
           image={link.preview_image}
           title={title}
@@ -227,7 +240,7 @@ export default function LinkDetailClient({ id }: Props) {
           <button
             type="button"
             onClick={handleOpenLink}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-500 py-3.5 text-sm font-bold text-white shadow-md shadow-primary-500/25 transition hover:bg-primary-600 active:bg-primary-700"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-500 py-3.5 text-sm font-bold text-white shadow-sm shadow-primary-500/20 transition hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:bg-primary-700"
           >
             <ExternalLinkIcon />
             링크 열기
@@ -235,7 +248,7 @@ export default function LinkDetailClient({ id }: Props) {
         </div>
       </div>
 
-      <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
         {link.memo ? (
           <div>
             <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-300">
@@ -251,7 +264,7 @@ export default function LinkDetailClient({ id }: Props) {
           <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-300">
             폴더
           </p>
-          <p className="text-sm text-gray-600">{folder ? folder.name : "미분류"}</p>
+          <p className="text-sm text-gray-600">{folder ? folder.name : UNCATEGORIZED_LABEL}</p>
         </div>
 
         <div>
@@ -264,7 +277,7 @@ export default function LinkDetailClient({ id }: Props) {
 
       <EditLinkModal
         link={editOpen ? link : null}
-        folders={folders}
+        folders={sortedFolders}
         onClose={() => setEditOpen(false)}
         onSave={handleSave}
       />
@@ -276,14 +289,12 @@ export default function LinkDetailClient({ id }: Props) {
             onClick={() => setMenuOpen(false)}
           />
 
-          <BottomSheetShell>
+          <BottomSheetShell ariaLabel="링크 관리" onClose={() => setMenuOpen(false)}>
             <div className="px-5 pt-3">
-              <h2 className="mb-1 text-base font-bold text-gray-900">
-                링크 관리
-              </h2>
+              <h2 className="mb-1 text-base font-bold text-gray-900">링크 관리</h2>
               <p className="mb-5 truncate text-sm text-gray-500">{title}</p>
 
-              <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <ActionButton
                   onClick={() => {
                     setMenuOpen(false);
@@ -334,38 +345,46 @@ export default function LinkDetailClient({ id }: Props) {
             onClick={() => {
               if (!moveLoading) {
                 setMoveOpen(false);
+                setMovePickerOpen(false);
               }
             }}
           />
 
-          <BottomSheetShell>
+          <BottomSheetShell
+            ariaLabel="폴더 이동"
+            onClose={() => {
+              if (!moveLoading) {
+                setMoveOpen(false);
+                setMovePickerOpen(false);
+              }
+            }}
+          >
             <div className="px-5 pt-3">
-              <h2 className="mb-1 text-base font-bold text-gray-900">
-                폴더 이동
-              </h2>
+              <h2 className="mb-1 text-base font-bold text-gray-900">폴더 이동</h2>
               <p className="mb-5 truncate text-sm text-gray-500">{title}</p>
 
               <label className="mb-1.5 block pl-1 text-xs font-semibold text-gray-500">
                 폴더
               </label>
-              <select
-                value={moveFolderId}
-                onChange={(event) => setMoveFolderId(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              >
-                <option value="">미분류</option>
-                {folders.map((nextFolder) => (
-                  <option key={nextFolder.id} value={nextFolder.id}>
-                    {nextFolder.name}
-                  </option>
-                ))}
-              </select>
+
+              <FolderSelectTrigger
+                value={
+                  sortedFolders.find((nextFolder) => nextFolder.id === moveFolderId)?.name ??
+                  UNCATEGORIZED_LABEL
+                }
+                muted={!moveFolderId}
+                tone={moveFolderId ? "selected" : "neutral"}
+                onClick={() => setMovePickerOpen(true)}
+              />
 
               <div className="mt-5 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setMoveOpen(false)}
-                  className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+                  onClick={() => {
+                    setMoveOpen(false);
+                    setMovePickerOpen(false);
+                  }}
+                  className="flex-1 rounded-lg border border-gray-200 bg-white py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                 >
                   취소
                 </button>
@@ -373,7 +392,7 @@ export default function LinkDetailClient({ id }: Props) {
                   type="button"
                   onClick={() => void handleMoveLink()}
                   disabled={moveLoading}
-                  className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/20 transition hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50"
                 >
                   {moveLoading ? "이동 중..." : "이동"}
                 </button>
@@ -382,6 +401,25 @@ export default function LinkDetailClient({ id }: Props) {
           </BottomSheetShell>
         </>
       ) : null}
+
+      <FolderSelectSheet
+        open={movePickerOpen}
+        title="폴더 선택"
+        folders={sortedFolders}
+        value={moveFolderId || UNCATEGORIZED_VALUE}
+        onClose={() => setMovePickerOpen(false)}
+        onSelect={(nextValue) => {
+          setMoveFolderId(nextValue === UNCATEGORIZED_VALUE ? "" : nextValue);
+          setMovePickerOpen(false);
+        }}
+        specialOptions={[
+          {
+            value: UNCATEGORIZED_VALUE,
+            label: UNCATEGORIZED_LABEL,
+          },
+        ]}
+        disabled={moveLoading}
+      />
 
       <ConfirmModal
         open={deleteOpen}
@@ -411,7 +449,7 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full px-4 py-3.5 text-left text-sm font-medium transition hover:bg-gray-50 active:bg-gray-100 ${
+      className={`w-full px-4 py-3.5 text-left text-sm font-medium transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset active:bg-gray-100 ${
         destructive ? "text-red-500" : "text-gray-800"
       }`}
     >

@@ -78,9 +78,9 @@ export default function MeClient() {
   if (authLoading) {
     return (
       <div className="space-y-5 pt-2">
-        <div className="animate-pulse rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="animate-pulse rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 shrink-0 rounded-2xl bg-gray-100" />
+            <div className="h-14 w-14 shrink-0 rounded-xl bg-gray-100" />
             <div className="flex-1 space-y-2">
               <div className="h-4 w-32 rounded-full bg-gray-100" />
               <div className="h-3 w-48 rounded-full bg-gray-100" />
@@ -88,8 +88,8 @@ export default function MeClient() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="h-24 animate-pulse rounded-2xl border border-gray-100 bg-white shadow-sm" />
-          <div className="h-24 animate-pulse rounded-2xl border border-gray-100 bg-white shadow-sm" />
+          <div className="h-24 animate-pulse rounded-xl border border-gray-200 bg-white" />
+          <div className="h-24 animate-pulse rounded-xl border border-gray-200 bg-white" />
         </div>
       </div>
     );
@@ -98,9 +98,9 @@ export default function MeClient() {
   return (
     <>
       <div className="space-y-5 pt-2">
-        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-100">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary-100">
               <span className="text-2xl text-primary-700">
                 {getUserAvatarFallback(user)}
               </span>
@@ -121,7 +121,7 @@ export default function MeClient() {
                 <button
                   type="button"
                   onClick={openNameEditor}
-                  className="shrink-0 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+                  className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                 >
                   수정
                 </button>
@@ -135,7 +135,7 @@ export default function MeClient() {
           <StatCard label="만든 폴더" value={folders.length} unit="개" />
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
           <MenuItem label="앱 정보" sub="링코 v0.1.0" />
           <div className="h-px bg-gray-100" />
           <button
@@ -158,7 +158,7 @@ export default function MeClient() {
             onClick={() => setEditOpen(false)}
           />
 
-          <BottomSheetShell>
+          <BottomSheetShell ariaLabel="이름 수정" onClose={() => setEditOpen(false)}>
             <div className="px-5 pt-3">
               <h2 className="mb-5 text-lg font-bold text-gray-900">이름 수정</h2>
 
@@ -176,7 +176,7 @@ export default function MeClient() {
                     }
                   }}
                   placeholder="사용자 이름"
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 focus-visible:outline-none"
                   autoFocus
                 />
 
@@ -188,7 +188,7 @@ export default function MeClient() {
                   <button
                     type="button"
                     onClick={() => setEditOpen(false)}
-                    className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+                    className="flex-1 rounded-lg border border-gray-200 bg-white py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                   >
                     취소
                   </button>
@@ -196,7 +196,7 @@ export default function MeClient() {
                     type="button"
                     onClick={() => void handleSaveName()}
                     disabled={savingName || !nameDraft.trim()}
-                    className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary-500/25 transition hover:bg-primary-600 disabled:opacity-50"
+                    className="flex-1 rounded-lg bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/20 transition hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50"
                   >
                     {savingName ? "저장 중..." : "저장"}
                   </button>
@@ -222,7 +222,7 @@ function StatCard({
   unit: string;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
+    <div className="rounded-xl border border-gray-200 bg-white px-5 py-4">
       <p className="mb-1 text-xs font-medium text-gray-400">{label}</p>
       <p className="text-2xl font-bold text-gray-900">
         {value}
