@@ -29,13 +29,18 @@ export default function EditLinkModal({ link, folders, onClose, onSave }: EditLi
     e.preventDefault();
     if (!link) return;
     setLoading(true);
-    await onSave(link.id, {
-      custom_title: customTitle || null,
-      memo: memo || null,
-      folder_id: folderId || null,
-    });
-    setLoading(false);
-    onClose();
+    try {
+      await onSave(link.id, {
+        custom_title: customTitle || null,
+        memo: memo || null,
+        folder_id: folderId || null,
+      });
+      onClose();
+    } catch {
+      return;
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (!link) return null;
