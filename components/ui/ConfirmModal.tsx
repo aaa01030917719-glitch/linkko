@@ -29,7 +29,7 @@ export default function ConfirmModal({
     <>
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
 
-      <BottomSheetShell>
+      <BottomSheetShell ariaLabel={title} onClose={onCancel}>
         <div className="px-5 pt-3">
           <h2 className="text-base font-bold text-gray-900 mb-1.5">{title}</h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-6">{message}</p>
@@ -37,13 +37,13 @@ export default function ConfirmModal({
           <div className="flex gap-2">
             <button
               onClick={onCancel}
-              className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition"
+              className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 active:bg-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
             >
               {cancelLabel}
             </button>
             <button
               onClick={onConfirm}
-              className={`flex-1 rounded-2xl py-3.5 text-sm font-semibold transition ${
+              className={`flex-1 rounded-2xl py-3.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
                 destructive
                   ? "bg-red-500 text-white hover:bg-red-600 active:bg-red-700"
                   : "bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 shadow-md shadow-primary-500/25"

@@ -6,12 +6,16 @@ interface BottomSheetShellProps {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  ariaLabel?: string;
+  onClose?: () => void;
 }
 
 export default function BottomSheetShell({
   children,
   className = "",
   contentClassName = "",
+  ariaLabel = "Dialog",
+  onClose,
 }: BottomSheetShellProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
@@ -72,6 +76,38 @@ export default function BottomSheetShell({
     };
   }, []);
 
+  useEffect(() => {
+    const currentSheet = sheetRef.current;
+
+    if (!currentSheet) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      currentSheet.focus();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!onClose) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-x-0 bottom-0 z-50"
@@ -83,7 +119,11 @@ export default function BottomSheetShell({
     >
       <div
         ref={sheetRef}
-        className={`w-full overflow-hidden rounded-t-[28px] rounded-b-none bg-white shadow-2xl md:mx-auto md:max-w-2xl ${className}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        tabIndex={-1}
+        className={`w-full overflow-hidden rounded-t-[28px] rounded-b-none bg-white shadow-2xl focus-visible:outline-none md:mx-auto md:max-w-2xl ${className}`}
         style={{ maxHeight: "78vh" }}
       >
         <div className="flex justify-center pb-1 pt-3">

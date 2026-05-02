@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils/cn";
 
 interface ModalProps {
@@ -12,6 +12,8 @@ interface ModalProps {
 }
 
 export default function Modal({ open, onClose, title, children, className }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
@@ -20,6 +22,29 @@ export default function Modal({ open, onClose, title, children, className }: Mod
     }
     return () => { document.body.style.overflow = ""; };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      dialogRef.current?.focus();
+    }, 0);
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -30,8 +55,13 @@ export default function Modal({ open, onClose, title, children, className }: Mod
         onClick={onClose}
       />
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title ?? "Dialog"}
+        tabIndex={-1}
         className={cn(
-          "relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl px-4 pt-4 pb-8 sm:pb-4",
+          "relative w-full bg-white px-4 pb-8 pt-4 shadow-xl focus-visible:outline-none sm:max-w-md sm:rounded-2xl sm:pb-4 rounded-t-2xl",
           className
         )}
       >
