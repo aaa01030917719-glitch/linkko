@@ -154,8 +154,8 @@ export default function DashboardClient() {
         )}
 
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-base font-bold text-gray-900">내 폴더</h3>
+          <div className="mb-2.5 flex items-center justify-between">
+            <h3 className="text-[13px] font-medium text-gray-600">내 폴더</h3>
             <div className="flex items-center gap-3">
               {hasMoreFolders ? (
                 <Link
@@ -177,8 +177,8 @@ export default function DashboardClient() {
         </section>
 
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-base font-bold text-gray-900">즐겨찾는 링크</h3>
+          <div className="mb-2.5 flex items-center justify-between">
+            <h3 className="text-[13px] font-medium text-gray-600">즐겨찾는 링크</h3>
             {favoriteLinks.length > 5 ? (
               <Link
                 href="/links?favorites=1"
@@ -197,7 +197,7 @@ export default function DashboardClient() {
         </section>
 
         <section>
-          <h3 className="mb-3 text-base font-bold text-gray-900">최근 저장</h3>
+          <h3 className="mb-2.5 text-[13px] font-medium text-gray-600">최근 저장</h3>
           <RecentLinks
             links={recentLinks}
             loading={loading}

@@ -32,6 +32,24 @@ function getSaveSuccessMessage(folderName?: string | null) {
   return folderName ? `${folderName} 폴더에 저장했어요` : "링크를 저장했어요";
 }
 
+function sortLinksByFavoriteAndRecency(
+  sourceLinks: LinkType[],
+  favoriteIds: Set<string>,
+) {
+  return [...sourceLinks].sort((left, right) => {
+    const favoriteDiff =
+      Number(favoriteIds.has(right.id)) - Number(favoriteIds.has(left.id));
+
+    if (favoriteDiff !== 0) {
+      return favoriteDiff;
+    }
+
+    return (
+      new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+    );
+  });
+}
+
 export default function LinksClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -93,11 +111,11 @@ export default function LinksClient() {
   );
 
   const visibleLinks = useMemo(() => {
-    if (!showFavoritesOnly) {
-      return links;
-    }
+    const filteredLinks = showFavoritesOnly
+      ? links.filter((link) => favoriteLinkIds.has(link.id))
+      : links;
 
-    return links.filter((link) => favoriteLinkIds.has(link.id));
+    return sortLinksByFavoriteAndRecency(filteredLinks, favoriteLinkIds);
   }, [favoriteLinkIds, links, showFavoritesOnly]);
 
   const pageTitle = useMemo(() => {
