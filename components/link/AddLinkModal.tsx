@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import BottomSheetShell from "@/components/ui/BottomSheetShell";
-import { isValidUrl } from "@/lib/utils/url";
+import { getHttpUrl, normalizeUrlInput } from "@/lib/utils/url";
 import type { Folder, Link, LinkPreview } from "@/types";
 
 interface AddLinkModalProps {
@@ -192,12 +192,15 @@ export default function AddLinkModal({
     nextUrl: string,
     nextMemoCandidate?: string | null,
   ) {
-    if (!isValidUrl(nextUrl)) {
+    const normalizedUrl = normalizeUrlInput(nextUrl);
+    const httpUrl = getHttpUrl(normalizedUrl);
+
+    if (!httpUrl) {
       setUrlError("올바른 URL을 입력해 주세요. (https://...)");
       return;
     }
 
-    setUrl(nextUrl);
+    setUrl(httpUrl);
     setUrlError("");
     setFetchingPreview(true);
 
@@ -207,7 +210,7 @@ export default function AddLinkModal({
 
     try {
       const response = await fetch(
-        `/api/preview?url=${encodeURIComponent(nextUrl)}`,
+        `/api/preview?url=${encodeURIComponent(httpUrl)}`,
       );
 
       if (!response.ok) {

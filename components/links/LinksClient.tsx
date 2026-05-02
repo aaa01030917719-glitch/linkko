@@ -1,53 +1,67 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import FolderList from "@/components/folder/FolderList";
 import AddLinkFab from "@/components/link/AddLinkFab";
 import AddLinkModal from "@/components/link/AddLinkModal";
-import EditLinkModal from "@/components/link/EditLinkModal";
 import LinkListItem from "@/components/link/LinkListItem";
+import FavoriteStarButton from "@/components/ui/FavoriteStarButton";
 import BottomSheetShell from "@/components/ui/BottomSheetShell";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import Toast from "@/components/ui/Toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useFavoriteIds } from "@/hooks/useFavoriteIds";
 import { useFolders } from "@/hooks/useFolders";
 import { useLinks } from "@/hooks/useLinks";
 import { usePendingSharedLink } from "@/hooks/usePendingSharedLink";
+import { recordRecentFolder, recordRecentLink } from "@/hooks/useRecentActivity";
 import { useToast } from "@/hooks/useToast";
-import type { Link } from "@/types";
+import { openLinkTarget } from "@/lib/utils/url";
+import type { Folder, Link as LinkType } from "@/types";
 
 interface SaveOptions {
   folderName?: string | null;
 }
 
+type FolderSheetMode = "actions" | "rename";
+
 function getSaveSuccessMessage(folderName?: string | null) {
   return folderName ? `${folderName} 폴더에 저장했어요` : "링크를 저장했어요";
-}
-
-function getMoveSuccessMessage(folderName?: string | null) {
-  return folderName ? `${folderName} 폴더로 옮겼어요` : "미분류로 옮겼어요";
 }
 
 export default function LinksClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialFolder = searchParams.get("folder") ?? undefined;
+  const showFavoritesOnly = searchParams.get("favorites") === "1";
+  const initialFolder = showFavoritesOnly
+    ? undefined
+    : searchParams.get("folder") ?? undefined;
   const querySharedText = searchParams.get("sharedText");
   const querySharedUrl = searchParams.get("sharedUrl");
 
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
   const [selectedFolder, setSelectedFolder] = useState<
     string | null | undefined
   >(initialFolder ?? undefined);
   const [addOpen, setAddOpen] = useState(false);
-  const [editingLink, setEditingLink] = useState<Link | null>(null);
-  const [actionLink, setActionLink] = useState<Link | null>(null);
-  const [movingLink, setMovingLink] = useState<Link | null>(null);
-  const [moveFolderId, setMoveFolderId] = useState("");
-  const [moveLoading, setMoveLoading] = useState(false);
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [folderSheetOpen, setFolderSheetOpen] = useState(false);
+  const [folderSheetMode, setFolderSheetMode] =
+    useState<FolderSheetMode>("actions");
+  const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState("");
+  const [folderActionLoading, setFolderActionLoading] = useState(false);
+  const [pendingDeleteFolder, setPendingDeleteFolder] = useState<Folder | null>(
+    null,
+  );
   const { toast, showToast } = useToast();
+  const {
+    favoriteIds: favoriteLinkIds,
+    toggleFavorite: toggleFavoriteLink,
+  } = useFavoriteIds("links", user?.id ?? null);
   const { clearPendingSharedLink, sharedText, sharedUrl } = usePendingSharedLink({
     text: querySharedText,
     url: querySharedUrl,
@@ -57,6 +71,9 @@ export default function LinksClient() {
     folders,
     error: foldersError,
     createFolder,
+    deleteFolder,
+    pinFolder,
+    renameFolder,
     refetch: refetchFolders,
   } = useFolders();
   const {
@@ -64,10 +81,36 @@ export default function LinksClient() {
     loading,
     error: linksError,
     addLink,
-    updateLink,
-    deleteLink,
     refetch: refetchLinks,
   } = useLinks(selectedFolder);
+
+  const currentFolder = useMemo(
+    () =>
+      typeof selectedFolder === "string" && selectedFolder
+        ? folders.find((folder) => folder.id === selectedFolder) ?? null
+        : null,
+    [folders, selectedFolder],
+  );
+
+  const visibleLinks = useMemo(() => {
+    if (!showFavoritesOnly) {
+      return links;
+    }
+
+    return links.filter((link) => favoriteLinkIds.has(link.id));
+  }, [favoriteLinkIds, links, showFavoritesOnly]);
+
+  const pageTitle = useMemo(() => {
+    if (showFavoritesOnly) {
+      return "즐겨찾는 링크";
+    }
+
+    if (selectedFolder === null) {
+      return "미분류";
+    }
+
+    return currentFolder?.name ?? "링크";
+  }, [currentFolder?.name, selectedFolder, showFavoritesOnly]);
 
   useEffect(() => {
     if (!sharedUrl && !sharedText) {
@@ -77,19 +120,48 @@ export default function LinksClient() {
     setAddOpen(true);
   }, [sharedText, sharedUrl]);
 
-  const currentFolderName = useMemo(() => {
-    if (selectedFolder === null) {
-      return "미분류";
+  useEffect(() => {
+    if (showFavoritesOnly) {
+      setSelectedFolder(undefined);
+      return;
     }
 
-    if (typeof selectedFolder === "string" && selectedFolder) {
-      return folders.find((folder) => folder.id === selectedFolder)?.name;
+    setSelectedFolder(initialFolder ?? undefined);
+  }, [initialFolder, showFavoritesOnly]);
+
+  useEffect(() => {
+    if (!folderSheetOpen || folderSheetMode !== "rename") {
+      return;
     }
 
-    return undefined;
-  }, [folders, selectedFolder]);
+    const timer = window.setTimeout(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }, 50);
 
-  async function handleAdd(payload: Partial<Link>, options?: SaveOptions) {
+    return () => window.clearTimeout(timer);
+  }, [folderSheetMode, folderSheetOpen]);
+
+  useEffect(() => {
+    if (!folderSheetOpen || !currentFolder) {
+      return;
+    }
+
+    setRenameValue(currentFolder.name);
+  }, [currentFolder, folderSheetOpen]);
+
+  useEffect(() => {
+    if (!currentFolder) {
+      return;
+    }
+
+    recordRecentFolder(user?.id ?? null, {
+      id: currentFolder.id,
+      name: currentFolder.name,
+    });
+  }, [currentFolder, user?.id]);
+
+  async function handleAdd(payload: Partial<LinkType>, options?: SaveOptions) {
     try {
       await addLink(payload);
       setAddOpen(false);
@@ -101,56 +173,73 @@ export default function LinksClient() {
     }
   }
 
-  async function handleUpdate(id: string, payload: Partial<Link>) {
-    try {
-      await updateLink(id, payload);
-      await Promise.all([refetchLinks(), refetchFolders()]);
-      showToast("링크를 수정했어요");
-    } catch {
-      showToast("링크를 수정하지 못했어요. 다시 시도해 주세요.");
-      throw new Error("update_failed");
-    }
-  }
-
-  async function handleConfirmDelete() {
-    if (!pendingDeleteId) {
+  async function handleRenameCurrentFolder() {
+    if (!currentFolder) {
       return;
     }
 
-    try {
-      await deleteLink(pendingDeleteId);
-      await Promise.all([refetchLinks(), refetchFolders()]);
-      showToast("링크를 삭제했어요");
-    } catch {
-      showToast("링크를 삭제하지 못했어요. 다시 시도해 주세요.");
-    } finally {
-      setPendingDeleteId(null);
-    }
-  }
+    const trimmedName = renameValue.trim();
 
-  async function handleMoveLink() {
-    if (!movingLink) {
+    if (!trimmedName) {
+      setRenameError("폴더 이름을 입력해 주세요");
       return;
     }
 
-    setMoveLoading(true);
+    setFolderActionLoading(true);
+    setRenameError("");
 
     try {
-      const targetFolderId = moveFolderId || null;
-      await updateLink(movingLink.id, { folder_id: targetFolderId });
-      await Promise.all([refetchLinks(), refetchFolders()]);
-
-      const nextFolderName = targetFolderId
-        ? folders.find((folder) => folder.id === targetFolderId)?.name ?? null
-        : null;
-
-      setMovingLink(null);
-      setMoveFolderId("");
-      showToast(getMoveSuccessMessage(nextFolderName));
+      await renameFolder(currentFolder.id, trimmedName);
+      await refetchFolders();
+      setFolderSheetOpen(false);
+      setFolderSheetMode("actions");
+      showToast("폴더 이름을 바꿨어요");
     } catch {
-      showToast("폴더를 옮기지 못했어요. 다시 시도해 주세요.");
+      setRenameError("이름을 바꾸지 못했어요. 다시 시도해 주세요.");
     } finally {
-      setMoveLoading(false);
+      setFolderActionLoading(false);
+    }
+  }
+
+  async function handlePinCurrentFolder() {
+    if (!currentFolder) {
+      return;
+    }
+
+    setFolderActionLoading(true);
+
+    try {
+      await pinFolder(currentFolder.id);
+      await refetchFolders();
+      setFolderSheetOpen(false);
+      showToast("폴더를 상단에 고정했어요");
+    } catch {
+      showToast("폴더를 고정하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setFolderActionLoading(false);
+    }
+  }
+
+  async function handleDeleteCurrentFolder() {
+    if (!pendingDeleteFolder) {
+      return;
+    }
+
+    setFolderActionLoading(true);
+
+    try {
+      await deleteFolder(pendingDeleteFolder.id);
+      setPendingDeleteFolder(null);
+      setFolderSheetOpen(false);
+      setFolderSheetMode("actions");
+      setSelectedFolder(undefined);
+      router.replace("/links");
+      await Promise.all([refetchFolders(), refetchLinks()]);
+      showToast("폴더를 삭제했어요");
+    } catch {
+      showToast("폴더를 삭제하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setFolderActionLoading(false);
     }
   }
 
@@ -167,6 +256,10 @@ export default function LinksClient() {
     }
 
     const nextSearchParams = new URLSearchParams();
+
+    if (showFavoritesOnly) {
+      nextSearchParams.set("favorites", "1");
+    }
 
     if (typeof selectedFolder === "string" && selectedFolder) {
       nextSearchParams.set("folder", selectedFolder);
@@ -188,50 +281,49 @@ export default function LinksClient() {
     setAddOpen(false);
   }
 
-  function handleOpenLink(link: Link) {
-    if (!link.url) {
-      return;
+  function handleOpenLink(link: LinkType) {
+    recordRecentLink(user?.id ?? null, link);
+    const openResult = openLinkTarget(link.url);
+
+    if (openResult === "invalid") {
+      showToast("열 수 없는 링크예요.");
     }
-
-    window.open(link.url, "_blank", "noopener,noreferrer");
-  }
-
-  function handleOpenActions(link: Link) {
-    setActionLink(link);
-  }
-
-  function handleCloseActions() {
-    setActionLink(null);
-  }
-
-  function handleOpenEdit(link: Link) {
-    setEditingLink(link);
-    setActionLink(null);
-  }
-
-  function handleOpenMove(link: Link) {
-    setMoveFolderId(link.folder_id ?? "");
-    setMovingLink(link);
-    setActionLink(null);
-  }
-
-  function handleOpenDetail(link: Link) {
-    setActionLink(null);
-    router.push(`/links/${link.id}`);
-  }
-
-  function handleRequestDelete(link: Link) {
-    setPendingDeleteId(link.id);
-    setActionLink(null);
   }
 
   return (
     <>
       <div className="space-y-4 pb-36">
         <header className="pt-2">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {currentFolderName ?? "링크"}
-          </h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold text-gray-900">{pageTitle}</h2>
+
+            <div className="flex items-center gap-2">
+              {showFavoritesOnly ? (
+                <Link
+                  href="/links"
+                  className="text-sm font-semibold text-gray-500 transition hover:text-gray-700"
+                >
+                  전체 링크
+                </Link>
+              ) : null}
+
+              {currentFolder ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFolderSheetOpen(true);
+                    setFolderSheetMode("actions");
+                    setRenameValue(currentFolder.name);
+                    setRenameError("");
+                  }}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-gray-300 transition hover:bg-gray-100 hover:text-gray-500 active:bg-gray-200"
+                  aria-label={`${currentFolder.name} 폴더 메뉴`}
+                >
+                  <DotsIcon />
+                </button>
+              ) : null}
+            </div>
+          </div>
         </header>
 
         {(foldersError || linksError) && (
@@ -244,11 +336,13 @@ export default function LinksClient() {
           />
         )}
 
-        <FolderList
-          folders={folders}
-          selectedId={selectedFolder}
-          onSelect={setSelectedFolder}
-        />
+        {!showFavoritesOnly ? (
+          <FolderList
+            folders={folders}
+            selectedId={selectedFolder}
+            onSelect={setSelectedFolder}
+          />
+        ) : null}
 
         {loading ? (
           <div className="space-y-1">
@@ -266,13 +360,15 @@ export default function LinksClient() {
               </div>
             ))}
           </div>
-        ) : links.length === 0 ? (
+        ) : visibleLinks.length === 0 ? (
           <div className="py-16 text-center">
             <p className="mb-3 text-lg font-semibold text-gray-400">Linkko</p>
             <p className="text-sm font-medium text-gray-500">
-              {selectedFolder === null
-                ? "미분류 링크가 아직 없어요"
-                : "저장한 링크가 아직 없어요"}
+              {showFavoritesOnly
+                ? "즐겨찾는 링크가 아직 없어요"
+                : selectedFolder === null
+                  ? "미분류 링크가 아직 없어요"
+                  : "저장한 링크가 아직 없어요"}
             </p>
             <p className="mt-1 text-xs text-gray-400">
               아래 버튼으로 첫 링크를 저장해 보세요
@@ -280,20 +376,17 @@ export default function LinksClient() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {links.map((link) => (
+            {visibleLinks.map((link) => (
               <LinkListItem
                 key={link.id}
                 link={link}
                 onOpen={() => handleOpenLink(link)}
                 rightSlot={
-                  <button
-                    type="button"
-                    onClick={() => handleOpenActions(link)}
-                    aria-label="링크 메뉴"
-                    className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-300 transition hover:bg-gray-100 hover:text-gray-500 active:bg-gray-200"
-                  >
-                    <DotsIcon />
-                  </button>
+                  <FavoriteStarButton
+                    active={favoriteLinkIds.has(link.id)}
+                    label={`${link.custom_title ?? link.preview_title ?? "링크"} 즐겨찾기`}
+                    onClick={() => toggleFavoriteLink(link.id)}
+                  />
                 }
               />
             ))}
@@ -307,174 +400,154 @@ export default function LinksClient() {
         open={addOpen}
         onClose={handleCloseAddLink}
         folders={folders}
-        initialFolderId={selectedFolder}
+        initialFolderId={showFavoritesOnly ? undefined : selectedFolder}
         initialSharedText={sharedText}
         initialUrl={sharedUrl}
         onAdd={handleAdd}
         onCreateFolder={createFolder}
       />
 
-      <EditLinkModal
-        link={editingLink}
-        folders={folders}
-        onClose={() => setEditingLink(null)}
-        onSave={handleUpdate}
-      />
-
-      <ConfirmModal
-        open={pendingDeleteId !== null}
-        title="링크 삭제"
-        message="이 링크를 삭제하면 다시 되돌릴 수 없어요."
-        confirmLabel="삭제"
-        destructive
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setPendingDeleteId(null)}
-      />
-
-      {actionLink ? (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-            onClick={handleCloseActions}
-          />
-
-          <BottomSheetShell>
-            <div className="px-5 pt-3">
-              <h2 className="mb-1 text-base font-bold text-gray-900">
-                링크 관리
-              </h2>
-              <p className="mb-5 truncate text-sm text-gray-500">
-                {actionLink.custom_title ??
-                  actionLink.preview_title ??
-                  actionLink.url}
-              </p>
-
-              <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
-                <ActionButton onClick={() => handleOpenLink(actionLink)}>
-                  열기
-                </ActionButton>
-                <ActionDivider />
-                <ActionButton onClick={() => handleOpenEdit(actionLink)}>
-                  수정
-                </ActionButton>
-                <ActionDivider />
-                <ActionButton onClick={() => handleOpenMove(actionLink)}>
-                  폴더 이동
-                </ActionButton>
-                <ActionDivider />
-                <ActionButton onClick={() => handleOpenDetail(actionLink)}>
-                  상세 보기
-                </ActionButton>
-                <ActionDivider />
-                <ActionButton
-                  onClick={() => handleRequestDelete(actionLink)}
-                  destructive
-                >
-                  삭제
-                </ActionButton>
-              </div>
-            </div>
-          </BottomSheetShell>
-        </>
-      ) : null}
-
-      {movingLink ? (
+      {folderSheetOpen && currentFolder ? (
         <>
           <div
             className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
             onClick={() => {
-              if (moveLoading) {
-                return;
-              }
-
-              setMovingLink(null);
-              setMoveFolderId("");
+              setFolderSheetOpen(false);
+              setFolderSheetMode("actions");
+              setRenameError("");
             }}
           />
 
           <BottomSheetShell>
             <div className="px-5 pt-3">
-              <h2 className="mb-1 text-base font-bold text-gray-900">
-                폴더 이동
-              </h2>
-              <p className="mb-5 truncate text-sm text-gray-500">
-                {movingLink.custom_title ?? movingLink.preview_title ?? movingLink.url}
-              </p>
+              {folderSheetMode === "actions" ? (
+                <>
+                  <h2 className="mb-1 text-lg font-bold text-gray-900">
+                    {currentFolder.name}
+                  </h2>
+                  <p className="mb-5 text-sm text-gray-400">
+                    폴더에서 필요한 작업을 선택해 주세요
+                  </p>
 
-              <label className="mb-1.5 block pl-1 text-xs font-semibold text-gray-500">
-                폴더
-              </label>
-              <select
-                value={moveFolderId}
-                onChange={(event) => setMoveFolderId(event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              >
-                <option value="">미분류</option>
-                {folders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
-              </select>
+                  <div className="space-y-2">
+                    <FolderActionButton
+                      label="이름 변경"
+                      onClick={() => {
+                        setFolderSheetMode("rename");
+                        setRenameValue(currentFolder.name);
+                      }}
+                    />
+                    <FolderActionButton
+                      disabled={folderActionLoading}
+                      label="상단 고정"
+                      onClick={() => void handlePinCurrentFolder()}
+                    />
+                    <FolderActionButton
+                      destructive
+                      label="삭제"
+                      onClick={() => {
+                        setPendingDeleteFolder(currentFolder);
+                        setFolderSheetOpen(false);
+                      }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="mb-5 text-lg font-bold text-gray-900">
+                    폴더 이름 변경
+                  </h2>
 
-              <div className="mt-5 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (moveLoading) {
-                      return;
-                    }
+                  <div className="space-y-3">
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={(event) => {
+                        setRenameValue(event.target.value);
+                        setRenameError("");
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleRenameCurrentFolder();
+                        }
+                      }}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
 
-                    setMovingLink(null);
-                    setMoveFolderId("");
-                  }}
-                  className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 active:bg-gray-300"
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMoveLink}
-                  disabled={moveLoading}
-                  className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 active:bg-primary-700 disabled:opacity-50"
-                >
-                  {moveLoading ? "이동 중..." : "이동"}
-                </button>
-              </div>
+                    {renameError ? (
+                      <p className="pl-1 text-xs text-red-500">{renameError}</p>
+                    ) : null}
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFolderSheetMode("actions");
+                          setRenameError("");
+                        }}
+                        className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleRenameCurrentFolder()}
+                        disabled={folderActionLoading}
+                        className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
+                      >
+                        {folderActionLoading ? "확인 중..." : "확인"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </BottomSheetShell>
         </>
       ) : null}
+
+      <ConfirmModal
+        open={pendingDeleteFolder !== null}
+        title="폴더를 삭제할까요?"
+        message="폴더를 삭제해도 링크는 사라지지 않고 미분류로 남아요."
+        confirmLabel="삭제"
+        destructive
+        onConfirm={() => void handleDeleteCurrentFolder()}
+        onCancel={() => setPendingDeleteFolder(null)}
+      />
 
       {toast ? <Toast message={toast} /> : null}
     </>
   );
 }
 
-function ActionButton({
-  children,
+function FolderActionButton({
   destructive = false,
+  disabled = false,
+  label,
   onClick,
 }: {
-  children: ReactNode;
   destructive?: boolean;
+  disabled?: boolean;
+  label: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full px-4 py-3.5 text-left text-sm font-medium transition hover:bg-gray-50 active:bg-gray-100 ${
-        destructive ? "text-red-500" : "text-gray-800"
-      }`}
+      disabled={disabled}
+      className={`flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-sm font-semibold transition ${
+        destructive
+          ? "bg-red-50 text-red-500 hover:bg-red-100"
+          : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+      } disabled:opacity-50`}
     >
-      {children}
+      <span>{label}</span>
+      <ChevronIcon />
     </button>
   );
-}
-
-function ActionDivider() {
-  return <div className="mx-4 h-px bg-gray-100" />;
 }
 
 function DotsIcon() {
@@ -483,6 +556,23 @@ function DotsIcon() {
       <circle cx="5" cy="12" r="2" />
       <circle cx="12" cy="12" r="2" />
       <circle cx="19" cy="12" r="2" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="9 18 15 12 9 6" />
     </svg>
   );
 }

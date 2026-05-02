@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import FolderGrid from "@/components/dashboard/FolderGrid";
-import NewLinkBanner from "@/components/dashboard/NewLinkBanner";
 import RecentLinks from "@/components/dashboard/RecentLinks";
 import FolderManager from "@/components/folder/FolderManager";
 import AddLinkFab from "@/components/link/AddLinkFab";
@@ -10,13 +10,13 @@ import AddLinkModal from "@/components/link/AddLinkModal";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import Toast from "@/components/ui/Toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useFavoriteIds } from "@/hooks/useFavoriteIds";
 import { useFolders } from "@/hooks/useFolders";
 import { useLinks } from "@/hooks/useLinks";
 import { usePendingSharedLink } from "@/hooks/usePendingSharedLink";
 import { useToast } from "@/hooks/useToast";
 import { getUserDisplayName } from "@/lib/utils/user";
-import { isWithinDays } from "@/lib/utils/time";
-import type { Link } from "@/types";
+import type { FolderWithCount, Link as LinkType } from "@/types";
 
 function getSaveSuccessMessage(folderName?: string | null) {
   return folderName ? `${folderName} 폴더에 저장했어요` : "링크를 저장했어요";
@@ -30,14 +30,18 @@ export default function DashboardClient() {
   const { user } = useAuth();
   const { toast, showToast } = useToast();
   const { clearPendingSharedLink, sharedText, sharedUrl } = usePendingSharedLink();
+  const {
+    favoriteIds: favoriteFolderIds,
+    toggleFavorite: toggleFavoriteFolder,
+  } = useFavoriteIds("folders", user?.id ?? null);
+  const {
+    favoriteIds: favoriteLinkIds,
+  } = useFavoriteIds("links", user?.id ?? null);
 
   const {
     folders,
     error: foldersError,
     createFolder,
-    renameFolder,
-    deleteFolder,
-    pinFolder,
     refetch: refetchFolders,
   } = useFolders();
   const {
@@ -49,12 +53,8 @@ export default function DashboardClient() {
   } = useLinks();
 
   const displayName = getUserDisplayName(user);
-  const newLinksCount = useMemo(
-    () => links.filter((link) => isWithinDays(link.created_at, 7)).length,
-    [links],
-  );
 
-  const foldersWithCount = useMemo(
+  const foldersWithCount = useMemo<FolderWithCount[]>(
     () =>
       folders.map((folder) => ({
         ...folder,
@@ -63,7 +63,37 @@ export default function DashboardClient() {
     [folders, links],
   );
 
-  const recentLinks = useMemo(() => links.slice(0, 5), [links]);
+  const sortedFolders = useMemo(
+    () =>
+      [...foldersWithCount].sort((left, right) => {
+        const leftFavorite = favoriteFolderIds.has(left.id) ? 1 : 0;
+        const rightFavorite = favoriteFolderIds.has(right.id) ? 1 : 0;
+
+        if (leftFavorite !== rightFavorite) {
+          return rightFavorite - leftFavorite;
+        }
+
+        if (left.sort_order !== right.sort_order) {
+          return left.sort_order - right.sort_order;
+        }
+
+        return left.name.localeCompare(right.name, "ko");
+      }),
+    [favoriteFolderIds, foldersWithCount],
+  );
+
+  const visibleFolders = useMemo(() => sortedFolders.slice(0, 5), [sortedFolders]);
+  const hasMoreFolders = sortedFolders.length > 5;
+
+  const favoriteLinks = useMemo(
+    () => links.filter((link) => favoriteLinkIds.has(link.id)),
+    [favoriteLinkIds, links],
+  );
+  const visibleFavoriteLinks = useMemo(
+    () => favoriteLinks.slice(0, 5),
+    [favoriteLinks],
+  );
+  const recentLinks = useMemo(() => links.slice(0, 10), [links]);
 
   useEffect(() => {
     if (!sharedUrl && !sharedText) {
@@ -74,7 +104,7 @@ export default function DashboardClient() {
   }, [sharedText, sharedUrl]);
 
   async function handleAddLink(
-    payload: Partial<Link>,
+    payload: Partial<LinkType>,
     options?: { folderName?: string | null },
   ) {
     try {
@@ -123,27 +153,58 @@ export default function DashboardClient() {
           />
         )}
 
-        {!loading && newLinksCount > 0 ? (
-          <NewLinkBanner count={newLinksCount} />
-        ) : null}
-
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-base font-bold text-gray-900">내 폴더</h3>
-            <FolderManager onCreate={createFolder} />
+            <div className="flex items-center gap-3">
+              {hasMoreFolders ? (
+                <Link
+                  href="/folders"
+                  className="text-sm font-semibold text-gray-500 transition hover:text-gray-700"
+                >
+                  더보기
+                </Link>
+              ) : null}
+              <FolderManager onCreate={createFolder} />
+            </div>
           </div>
           <FolderGrid
-            folders={foldersWithCount}
+            favoriteFolderIds={favoriteFolderIds}
+            folders={visibleFolders}
             onAddLink={(folderId) => handleOpenAddLink(folderId)}
-            onDelete={deleteFolder}
-            onPin={pinFolder}
-            onRename={renameFolder}
+            onToggleFavorite={toggleFavoriteFolder}
+          />
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-base font-bold text-gray-900">즐겨찾는 링크</h3>
+            {favoriteLinks.length > 5 ? (
+              <Link
+                href="/links?favorites=1"
+                className="text-sm font-semibold text-gray-500 transition hover:text-gray-700"
+              >
+                전체 보기
+              </Link>
+            ) : null}
+          </div>
+          <RecentLinks
+            emptyDescription="링크 목록에서 별 버튼을 누르면 여기에 모여요"
+            emptyTitle="아직 즐겨찾는 링크가 없어요"
+            links={visibleFavoriteLinks}
+            loading={loading}
           />
         </section>
 
         <section>
           <h3 className="mb-3 text-base font-bold text-gray-900">최근 저장</h3>
-          <RecentLinks links={recentLinks} loading={loading} />
+          <RecentLinks
+            links={recentLinks}
+            loading={loading}
+            showViewAllButton
+            viewAllHref="/links"
+            viewAllLabel="전체 링크 보기"
+          />
         </section>
       </div>
 

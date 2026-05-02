@@ -1,7 +1,7 @@
 "use client";
 
 import PreviewThumbnail from "@/components/link/PreviewThumbnail";
-import { extractDomain } from "@/lib/utils/url";
+import { extractDomain, openLinkTarget } from "@/lib/utils/url";
 import { timeAgo } from "@/lib/utils/time";
 import type { Link } from "@/types";
 
@@ -16,11 +16,12 @@ export default function LinkCard({ link, onEdit, onDelete }: LinkCardProps) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-      <a
-        href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex gap-3 p-3 hover:bg-gray-50 active:bg-gray-100 transition"
+      <button
+        type="button"
+        onClick={() => {
+          openLinkTarget(link.url);
+        }}
+        className="flex w-full gap-3 p-3 text-left transition hover:bg-gray-50 active:bg-gray-100"
       >
         {/* 썸네일 */}
         <PreviewThumbnail
@@ -37,7 +38,7 @@ export default function LinkCard({ link, onEdit, onDelete }: LinkCardProps) {
           <p className="text-xs text-gray-400">{extractDomain(link.url)}</p>
           <p className="text-xs text-gray-300">{timeAgo(link.created_at)}</p>
         </div>
-      </a>
+      </button>
 
       {/* 메모 */}
       {link.memo && (

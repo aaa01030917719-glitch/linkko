@@ -3,11 +3,24 @@ import LinkListItem from "@/components/link/LinkListItem";
 import type { Link as LinkType } from "@/types";
 
 interface RecentLinksProps {
+  emptyDescription?: string;
+  emptyTitle?: string;
   links: LinkType[];
   loading: boolean;
+  showViewAllButton?: boolean;
+  viewAllHref?: string;
+  viewAllLabel?: string;
 }
 
-export default function RecentLinks({ links, loading }: RecentLinksProps) {
+export default function RecentLinks({
+  emptyDescription = "아래 버튼으로 첫 링크를 저장해 보세요",
+  emptyTitle = "아직 저장한 링크가 없어요",
+  links,
+  loading,
+  showViewAllButton = false,
+  viewAllHref = "/links",
+  viewAllLabel = "전체 링크 보기",
+}: RecentLinksProps) {
   if (loading) {
     return (
       <div className="space-y-1">
@@ -31,12 +44,8 @@ export default function RecentLinks({ links, loading }: RecentLinksProps) {
   if (links.length === 0) {
     return (
       <div className="py-8">
-        <p className="text-sm font-semibold text-gray-500">
-          아직 저장한 링크가 없어요
-        </p>
-        <p className="mt-1 text-xs text-gray-400">
-          아래 버튼으로 첫 링크를 저장해 보세요
-        </p>
+        <p className="text-sm font-semibold text-gray-500">{emptyTitle}</p>
+        <p className="mt-1 text-xs text-gray-400">{emptyDescription}</p>
       </div>
     );
   }
@@ -62,12 +71,14 @@ export default function RecentLinks({ links, loading }: RecentLinksProps) {
         ))}
       </div>
 
-      <Link
-        href="/links"
-        className="inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 active:bg-gray-100"
-      >
-        전체 링크 보기
-      </Link>
+      {showViewAllButton ? (
+        <Link
+          href={viewAllHref}
+          className="inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 active:bg-gray-100"
+        >
+          {viewAllLabel}
+        </Link>
+      ) : null}
     </div>
   );
 }

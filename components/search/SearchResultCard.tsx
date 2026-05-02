@@ -1,6 +1,6 @@
 import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import Highlight from "@/components/search/Highlight";
-import { extractDomain } from "@/lib/utils/url";
+import { extractDomain, openLinkTarget } from "@/lib/utils/url";
 import type { Folder, Link } from "@/types";
 
 interface SearchResultCardProps {
@@ -24,11 +24,12 @@ export default function SearchResultCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-      <a
-        href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex gap-3 p-3.5 hover:bg-gray-50 active:bg-gray-100 transition"
+      <button
+        type="button"
+        onClick={() => {
+          openLinkTarget(link.url);
+        }}
+        className="flex w-full gap-3 p-3.5 text-left transition hover:bg-gray-50 active:bg-gray-100"
       >
         {/* 썸네일 */}
         <PreviewThumbnail
@@ -65,7 +66,7 @@ export default function SearchResultCard({
             </span>
           )}
         </div>
-      </a>
+      </button>
 
       {/* 액션 버튼 */}
       <div className="flex border-t border-gray-100">
