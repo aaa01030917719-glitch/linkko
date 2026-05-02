@@ -9,7 +9,8 @@ import BottomSheetShell from "@/components/ui/BottomSheetShell";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import FavoriteStarButton from "@/components/ui/FavoriteStarButton";
-import FilterChip from "@/components/ui/FilterChip";
+import FolderSelectSheet from "@/components/ui/FolderSelectSheet";
+import FolderSelectTrigger from "@/components/ui/FolderSelectTrigger";
 import Toast from "@/components/ui/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavoriteIds } from "@/hooks/useFavoriteIds";
@@ -27,6 +28,9 @@ interface SaveOptions {
 
 type FolderSheetMode = "actions" | "rename";
 
+const FILTER_ALL = "__all__";
+const FILTER_FAVORITES = "__favorites__";
+
 function getSaveSuccessMessage(folderName?: string | null) {
   return folderName ? `${folderName} 폴더에 저장했어요` : "링크를 저장했어요";
 }
@@ -43,9 +47,7 @@ function sortLinksByFavoriteAndRecency(
       return favoriteDiff;
     }
 
-    return (
-      new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
-    );
+    return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
   });
 }
 
@@ -73,22 +75,21 @@ export default function LinksClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderParam = searchParams.get("folder");
+  const filterParam = searchParams.get("filter");
   const querySharedText = searchParams.get("sharedText");
   const querySharedUrl = searchParams.get("sharedUrl");
+  const isFavoritesFilter = filterParam === "favorites";
 
   const renameInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const [addOpen, setAddOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [folderSheetOpen, setFolderSheetOpen] = useState(false);
-  const [folderSheetMode, setFolderSheetMode] =
-    useState<FolderSheetMode>("actions");
+  const [folderSheetMode, setFolderSheetMode] = useState<FolderSheetMode>("actions");
   const [renameValue, setRenameValue] = useState("");
   const [renameError, setRenameError] = useState("");
   const [folderActionLoading, setFolderActionLoading] = useState(false);
-  const [pendingDeleteFolder, setPendingDeleteFolder] = useState<Folder | null>(
-    null,
-  );
+  const [pendingDeleteFolder, setPendingDeleteFolder] = useState<Folder | null>(null);
   const { toast, showToast } = useToast();
   const {
     favoriteIds: favoriteLinkIds,
@@ -131,10 +132,21 @@ export default function LinksClient() {
     [favoriteFolderIds, folders],
   );
 
-  const visibleLinks = useMemo(
+  const sortedLinks = useMemo(
     () => sortLinksByFavoriteAndRecency(links, favoriteLinkIds),
     [favoriteLinkIds, links],
   );
+
+  const visibleLinks = useMemo(() => {
+    if (isFavoritesFilter) {
+      return sortedLinks.filter((link) => favoriteLinkIds.has(link.id));
+    }
+
+    return sortedLinks;
+  }, [favoriteLinkIds, isFavoritesFilter, sortedLinks]);
+
+  const currentFilterValue = currentFolder?.id ?? (isFavoritesFilter ? FILTER_FAVORITES : FILTER_ALL);
+  const currentFilterLabel = currentFolder?.name ?? (isFavoritesFilter ? "즐겨찾기" : "전체");
 
   useEffect(() => {
     if (!sharedUrl && !sharedText) {
@@ -182,7 +194,7 @@ export default function LinksClient() {
     });
   }, [currentFolder, user?.id]);
 
-  function buildLinksPath(nextFolderId?: string | null) {
+  function buildLinksPath(nextValue?: string) {
     const nextSearchParams = new URLSearchParams();
 
     for (const key of ["shared", "sharedText", "sharedUrl", "t"]) {
@@ -192,16 +204,18 @@ export default function LinksClient() {
       }
     }
 
-    if (nextFolderId) {
-      nextSearchParams.set("folder", nextFolderId);
+    if (nextValue === FILTER_FAVORITES) {
+      nextSearchParams.set("filter", "favorites");
+    } else if (nextValue && nextValue !== FILTER_ALL) {
+      nextSearchParams.set("folder", nextValue);
     }
 
     const nextQuery = nextSearchParams.toString();
     return nextQuery ? `/links?${nextQuery}` : "/links";
   }
 
-  function replaceFilter(nextFolderId?: string | null) {
-    router.replace(buildLinksPath(nextFolderId), { scroll: false });
+  function replaceFilter(nextValue: string) {
+    router.replace(buildLinksPath(nextValue), { scroll: false });
   }
 
   async function handleAdd(payload: Partial<LinkType>, options?: SaveOptions) {
@@ -297,7 +311,7 @@ export default function LinksClient() {
       return;
     }
 
-    router.replace(buildLinksPath(currentFolder?.id), { scroll: false });
+    router.replace(buildLinksPath(currentFilterValue), { scroll: false });
   }
 
   function handleOpenAddLink() {
@@ -338,14 +352,14 @@ export default function LinksClient() {
         )}
 
         <div className="flex items-center justify-between gap-3">
-          <FilterChip
-            active
-            className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5"
-            onClick={() => setFilterSheetOpen(true)}
-          >
-            <span>{currentFolder?.name ?? "전체"}</span>
-            <ChevronDownIcon />
-          </FilterChip>
+          <div className="min-w-0 flex-1">
+            <FolderSelectTrigger
+              value={currentFilterLabel}
+              tone="selected"
+              onClick={() => setFilterSheetOpen(true)}
+              className="w-fit min-w-[120px]"
+            />
+          </div>
 
           {currentFolder ? (
             <button
@@ -386,7 +400,9 @@ export default function LinksClient() {
             <p className="text-sm font-medium text-gray-500">
               {currentFolder
                 ? `${currentFolder.name}에 저장된 링크가 아직 없어요.`
-                : "저장한 링크가 아직 없어요."}
+                : isFavoritesFilter
+                  ? "즐겨찾기한 링크가 아직 없어요."
+                  : "저장한 링크가 아직 없어요."}
             </p>
             <p className="mt-1 text-xs text-gray-400">
               아래 버튼으로 첫 링크를 저장해 보세요.
@@ -417,7 +433,7 @@ export default function LinksClient() {
       <AddLinkModal
         open={addOpen}
         onClose={handleCloseAddLink}
-        folders={folders}
+        folders={sortedFolders}
         initialFolderId={currentFolder?.id}
         initialSharedText={sharedText}
         initialUrl={sharedUrl}
@@ -425,52 +441,23 @@ export default function LinksClient() {
         onCreateFolder={createFolder}
       />
 
-      {filterSheetOpen ? (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-            onClick={() => setFilterSheetOpen(false)}
-          />
-
-          <BottomSheetShell contentClassName="px-5 pt-3">
-            <h2 className="mb-5 text-lg font-bold text-gray-900">폴더 선택</h2>
-
-            <div className="space-y-1">
-              <FilterOptionButton
-                active={!currentFolder}
-                label="전체"
-                onClick={() => {
-                  setFilterSheetOpen(false);
-                  replaceFilter(undefined);
-                }}
-              />
-
-              {sortedFolders.length > 0 ? (
-                <div className="pt-2">
-                  <p className="mb-2 pl-1 text-xs font-semibold text-gray-400">
-                    내 폴더
-                  </p>
-                  <div className="space-y-1">
-                    {sortedFolders.map((folder) => (
-                      <FolderFilterRow
-                        key={folder.id}
-                        active={currentFolder?.id === folder.id}
-                        favorite={favoriteFolderIds.has(folder.id)}
-                        label={folder.name}
-                        onSelect={() => {
-                          setFilterSheetOpen(false);
-                          replaceFilter(folder.id);
-                        }}
-                        onToggleFavorite={() => toggleFavoriteFolder(folder.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </BottomSheetShell>
-        </>
-      ) : null}
+      <FolderSelectSheet
+        open={filterSheetOpen}
+        title="필터 선택"
+        folders={sortedFolders}
+        value={currentFilterValue}
+        onClose={() => setFilterSheetOpen(false)}
+        onSelect={(nextValue) => {
+          setFilterSheetOpen(false);
+          replaceFilter(nextValue);
+        }}
+        specialOptions={[
+          { value: FILTER_ALL, label: "전체" },
+          { value: FILTER_FAVORITES, label: "즐겨찾기" },
+        ]}
+        favoriteFolderIds={favoriteFolderIds}
+        onToggleFavorite={toggleFavoriteFolder}
+      />
 
       {folderSheetOpen && currentFolder ? (
         <>
@@ -483,7 +470,14 @@ export default function LinksClient() {
             }}
           />
 
-          <BottomSheetShell>
+          <BottomSheetShell
+            ariaLabel={folderSheetMode === "actions" ? "폴더 관리" : "폴더 이름 변경"}
+            onClose={() => {
+              setFolderSheetOpen(false);
+              setFolderSheetMode("actions");
+              setRenameError("");
+            }}
+          >
             <div className="px-5 pt-3">
               {folderSheetMode === "actions" ? (
                 <>
@@ -519,9 +513,7 @@ export default function LinksClient() {
                 </>
               ) : (
                 <>
-                  <h2 className="mb-5 text-lg font-bold text-gray-900">
-                    폴더 이름 변경
-                  </h2>
+                  <h2 className="mb-5 text-lg font-bold text-gray-900">폴더 이름 변경</h2>
 
                   <div className="space-y-3">
                     <input
@@ -587,66 +579,6 @@ export default function LinksClient() {
   );
 }
 
-function FilterOptionButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm transition ${
-        active
-          ? "bg-primary-50 font-semibold text-primary-600"
-          : "text-gray-700 hover:bg-gray-50"
-      }`}
-    >
-      <span>{label}</span>
-      {active ? <CheckIcon /> : null}
-    </button>
-  );
-}
-
-function FolderFilterRow({
-  active,
-  favorite,
-  label,
-  onSelect,
-  onToggleFavorite,
-}: {
-  active: boolean;
-  favorite: boolean;
-  label: string;
-  onSelect: () => void;
-  onToggleFavorite: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-sm transition ${
-        active
-          ? "bg-primary-50 text-primary-600"
-          : "text-gray-700 hover:bg-gray-50"
-      }`}
-    >
-      <span className={`min-w-0 flex-1 truncate ${active ? "font-semibold" : "font-medium"}`}>
-        {label}
-      </span>
-      <FavoriteStarButton
-        active={favorite}
-        label={`${label} 폴더 즐겨찾기`}
-        onClick={onToggleFavorite}
-      />
-    </button>
-  );
-}
-
 function FolderActionButton({
   destructive = false,
   disabled = false,
@@ -685,23 +617,6 @@ function DotsIcon() {
   );
 }
 
-function ChevronDownIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
-
 function ChevronRightIcon() {
   return (
     <svg
@@ -715,23 +630,6 @@ function ChevronRightIcon() {
       strokeLinejoin="round"
     >
       <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }

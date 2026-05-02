@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import BottomSheetShell from "@/components/ui/BottomSheetShell";
+import FolderSelectSheet from "@/components/ui/FolderSelectSheet";
+import FolderSelectTrigger from "@/components/ui/FolderSelectTrigger";
 import { getHttpUrl, normalizeUrlInput } from "@/lib/utils/url";
 import type { Folder, Link, LinkPreview } from "@/types";
 
@@ -21,11 +23,9 @@ interface AddLinkModalProps {
 }
 
 type Step = "url" | "detail";
-type FolderResolutionResult =
-  | { ok: true; folderId: string | null; folderName: string | null }
-  | { ok: false };
 
 const UNCATEGORIZED_LABEL = "미분류";
+const UNCATEGORIZED_VALUE = "__uncategorized__";
 
 function buildMemoCandidate(sharedText?: string | null, sharedUrl?: string | null) {
   const trimmedSharedText = sharedText?.trim() || "";
@@ -65,16 +65,12 @@ export default function AddLinkModal({
   const [folderId, setFolderId] = useState("");
   const [preview, setPreview] = useState<LinkPreview | null>(null);
   const [availableFolders, setAvailableFolders] = useState<Folder[]>(folders);
+  const [folderSheetOpen, setFolderSheetOpen] = useState(false);
   const [fetchingPreview, setFetchingPreview] = useState(false);
   const [savingLink, setSavingLink] = useState(false);
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [isEditingFolderName, setIsEditingFolderName] = useState(false);
-  const [folderDraftName, setFolderDraftName] = useState("");
   const [urlError, setUrlError] = useState("");
-  const [folderError, setFolderError] = useState("");
 
   const urlInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
   const preparedSharedSignatureRef = useRef<string | null>(null);
 
   const sharedMemoCandidate = useMemo(
@@ -150,27 +146,6 @@ export default function AddLinkModal({
     void prepareLinkDetails(normalizedUrl, normalizedMemo);
   }, [initialUrl, open, sharedMemoCandidate]);
 
-  useEffect(() => {
-    if (isEditingFolderName) {
-      return;
-    }
-
-    setFolderDraftName(selectedFolder?.name ?? "");
-  }, [isEditingFolderName, selectedFolder]);
-
-  useEffect(() => {
-    if (!isEditingFolderName) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      folderInputRef.current?.focus();
-      folderInputRef.current?.select();
-    }, 50);
-
-    return () => window.clearTimeout(timer);
-  }, [isEditingFolderName]);
-
   function resetModal() {
     setStep("url");
     setUrl("");
@@ -179,13 +154,10 @@ export default function AddLinkModal({
     setFolderId(initialFolderId ?? "");
     setPreview(null);
     setAvailableFolders(folders);
+    setFolderSheetOpen(false);
     setFetchingPreview(false);
     setSavingLink(false);
-    setCreatingFolder(false);
-    setIsEditingFolderName(false);
-    setFolderDraftName("");
     setUrlError("");
-    setFolderError("");
   }
 
   async function prepareLinkDetails(
@@ -233,123 +205,40 @@ export default function AddLinkModal({
     await prepareLinkDetails(url, sharedMemoCandidate);
   }
 
-  async function resolveFolderSelection(): Promise<FolderResolutionResult> {
-    if (!isEditingFolderName) {
-      return {
-        ok: true,
-        folderId: folderId || null,
-        folderName: selectedFolder?.name ?? null,
-      };
-    }
-
-    const trimmedName = folderDraftName.trim();
-
-    if (!trimmedName) {
-      setFolderError("폴더 이름을 입력해 주세요.");
-      return { ok: false };
-    }
-
-    if (trimmedName === UNCATEGORIZED_LABEL) {
-      setFolderId("");
-      setFolderDraftName("");
-      setIsEditingFolderName(false);
-      setFolderError("");
-      return { ok: true, folderId: null, folderName: null };
-    }
-
-    const existingFolder = sortedFolders.find(
-      (folder) => normalizeFolderName(folder.name) === normalizeFolderName(trimmedName),
-    );
-
-    if (existingFolder) {
-      setFolderId(existingFolder.id);
-      setFolderDraftName(existingFolder.name);
-      setIsEditingFolderName(false);
-      setFolderError("");
-      return {
-        ok: true,
-        folderId: existingFolder.id,
-        folderName: existingFolder.name,
-      };
-    }
-
-    setCreatingFolder(true);
-    setFolderError("");
-
-    try {
-      const createdFolder = await onCreateFolder(trimmedName);
-
-      setAvailableFolders((currentFolders) =>
-        sortFolders(upsertFolder(currentFolders, createdFolder)),
-      );
-      setFolderId(createdFolder.id);
-      setFolderDraftName(createdFolder.name);
-      setIsEditingFolderName(false);
-      return {
-        ok: true,
-        folderId: createdFolder.id,
-        folderName: createdFolder.name,
-      };
-    } catch {
-      setFolderError("폴더를 만들지 못했어요. 다시 시도해 주세요.");
-      return { ok: false };
-    } finally {
-      setCreatingFolder(false);
-    }
-  }
-
   async function handleSave(event: React.FormEvent) {
     event.preventDefault();
-
-    const resolvedFolder = await resolveFolderSelection();
-
-    if (!resolvedFolder.ok) {
-      return;
-    }
-
     setSavingLink(true);
 
     try {
-      await onAdd({
-        url,
-        custom_title: customTitle || null,
-        memo: memo || null,
-        folder_id: resolvedFolder.folderId,
-        preview_title: preview?.title ?? null,
-        preview_description: preview?.description ?? null,
-        preview_image: preview?.image ?? null,
-        preview_site_name: preview?.site_name ?? null,
-      }, {
-        folderName: resolvedFolder.folderName,
-      });
+      await onAdd(
+        {
+          url,
+          custom_title: customTitle || null,
+          memo: memo || null,
+          folder_id: folderId || null,
+          preview_title: preview?.title ?? null,
+          preview_description: preview?.description ?? null,
+          preview_image: preview?.image ?? null,
+          preview_site_name: preview?.site_name ?? null,
+        },
+        {
+          folderName: selectedFolder?.name ?? null,
+        },
+      );
     } finally {
       setSavingLink(false);
     }
   }
 
-  function beginFolderNameEditing() {
-    setFolderDraftName(selectedFolder?.name ?? "");
-    setFolderError("");
-    setIsEditingFolderName(true);
+  function handleSelectFolderValue(nextValue: string) {
+    setFolderId(nextValue === UNCATEGORIZED_VALUE ? "" : nextValue);
+    setFolderSheetOpen(false);
   }
 
-  async function handleConfirmFolderName() {
-    await resolveFolderSelection();
-  }
-
-  function handleFolderNameKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== "Enter") {
-      return;
-    }
-
-    event.preventDefault();
-    void handleConfirmFolderName();
-  }
-
-  function handleSelectFolder(nextFolderId: string) {
-    setFolderId(nextFolderId);
-    setIsEditingFolderName(false);
-    setFolderError("");
+  function handleFolderCreated(nextFolder: Folder) {
+    setAvailableFolders((currentFolders) =>
+      sortFolders(upsertFolder(currentFolders, nextFolder)),
+    );
   }
 
   if (!open) {
@@ -370,9 +259,7 @@ export default function AddLinkModal({
             onClick={(event) => event.stopPropagation()}
           >
             <div className="px-5 py-5">
-              <h2 className="mb-5 text-lg font-bold text-gray-900">
-                링크 가져오기
-              </h2>
+              <h2 className="mb-5 text-lg font-bold text-gray-900">링크 가져오기</h2>
 
               <form onSubmit={handlePreviewFetch} className="space-y-3">
                 <div>
@@ -392,6 +279,7 @@ export default function AddLinkModal({
                           : "border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                       }`}
                     />
+
                     {url ? (
                       <button
                         type="button"
@@ -413,8 +301,7 @@ export default function AddLinkModal({
 
                   {!url && sharedMemoCandidate && !initialUrl ? (
                     <p className="mt-2 pl-1 text-xs text-gray-500">
-                      공유한 텍스트는 메모로 넣어 둘게요. 링크만 붙여 넣으면 바로
-                      이어서 저장할 수 있어요.
+                      공유된 텍스트는 메모로 넣어둘게요. 링크만 붙여 넣으면 바로 저장 단계로 넘어갈 수 있어요.
                     </p>
                   ) : null}
                 </div>
@@ -435,7 +322,7 @@ export default function AddLinkModal({
                     {fetchingPreview ? (
                       <span className="flex items-center justify-center gap-2">
                         <Spinner />
-                        불러오는 중
+                        불러오는 중...
                       </span>
                     ) : (
                       "다음"
@@ -447,16 +334,14 @@ export default function AddLinkModal({
           </div>
         </div>
       ) : (
-        <BottomSheetShell>
-          <div
-            className="px-5 pb-2 pt-3"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <BottomSheetShell ariaLabel="링크 저장" onClose={onClose}>
+          <div className="px-5 pb-2 pt-3" onClick={(event) => event.stopPropagation()}>
             <div className="mb-5 flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setStep("url")}
                 className="-ml-1 p-1 text-gray-400 transition hover:text-gray-600"
+                aria-label="이전 단계"
               >
                 <BackIcon />
               </button>
@@ -477,9 +362,7 @@ export default function AddLinkModal({
                     {preview?.title}
                   </p>
                   {preview?.site_name ? (
-                    <p className="mt-1 text-xs text-gray-400">
-                      {preview.site_name}
-                    </p>
+                    <p className="mt-1 text-xs text-gray-400">{preview.site_name}</p>
                   ) : null}
                 </div>
               </div>
@@ -516,64 +399,16 @@ export default function AddLinkModal({
                   폴더
                 </label>
 
-                {isEditingFolderName ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={folderInputRef}
-                      value={folderDraftName}
-                      onChange={(event) => {
-                        setFolderDraftName(event.target.value);
-                        setFolderError("");
-                      }}
-                      onKeyDown={handleFolderNameKeyDown}
-                      placeholder="새 폴더 이름"
-                      className="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleConfirmFolderName()}
-                      disabled={creatingFolder}
-                      className="shrink-0 rounded-2xl bg-primary-500 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
-                    >
-                      {creatingFolder ? "확인 중..." : "확인"}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={beginFolderNameEditing}
-                    className="flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left text-sm transition hover:border-primary-200 hover:bg-primary-50/40"
-                  >
-                    <span className={folderId ? "text-gray-900" : "text-gray-500"}>
-                      {selectedFolderLabel}
-                    </span>
-                    <span className="text-xs font-semibold text-gray-400">
-                      눌러서 입력
-                    </span>
-                  </button>
-                )}
+                <FolderSelectTrigger
+                  value={selectedFolderLabel}
+                  muted={!folderId}
+                  tone={folderId ? "selected" : "neutral"}
+                  onClick={() => setFolderSheetOpen(true)}
+                />
 
-                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                  <FolderChip
-                    active={folderId === ""}
-                    onClick={() => handleSelectFolder("")}
-                  >
-                    {UNCATEGORIZED_LABEL}
-                  </FolderChip>
-                  {sortedFolders.map((folder) => (
-                    <FolderChip
-                      key={folder.id}
-                      active={folder.id === folderId}
-                      onClick={() => handleSelectFolder(folder.id)}
-                    >
-                      {folder.name}
-                    </FolderChip>
-                  ))}
-                </div>
-
-                {folderError ? (
-                  <p className="pl-1 text-xs text-red-500">{folderError}</p>
-                ) : null}
+                <p className="pl-1 text-xs text-gray-400">
+                  기존 폴더를 선택하거나, 시트에서 새 폴더를 만들 수 있어요.
+                </p>
               </div>
 
               <div className="flex gap-2 pt-1">
@@ -586,7 +421,7 @@ export default function AddLinkModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={savingLink || creatingFolder}
+                  disabled={savingLink}
                   className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary-500/25 transition hover:bg-primary-600 disabled:opacity-50"
                 >
                   {savingLink ? <Spinner className="mx-auto" /> : "저장"}
@@ -596,31 +431,25 @@ export default function AddLinkModal({
           </div>
         </BottomSheetShell>
       )}
-    </>
-  );
-}
 
-function FolderChip({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-        active
-          ? "bg-primary-50 text-primary-600 ring-1 ring-primary-200"
-          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-      }`}
-    >
-      {children}
-    </button>
+      <FolderSelectSheet
+        open={folderSheetOpen}
+        title="폴더 선택"
+        folders={sortedFolders}
+        value={folderId || UNCATEGORIZED_VALUE}
+        onClose={() => setFolderSheetOpen(false)}
+        onSelect={handleSelectFolderValue}
+        onCreateFolder={onCreateFolder}
+        onFolderCreated={handleFolderCreated}
+        createLabel="새 폴더 만들기"
+        specialOptions={[
+          {
+            value: UNCATEGORIZED_VALUE,
+            label: UNCATEGORIZED_LABEL,
+          },
+        ]}
+      />
+    </>
   );
 }
 
@@ -631,10 +460,6 @@ function upsertFolder(folders: Folder[], nextFolder: Folder) {
 
 function sortFolders(folders: Folder[]) {
   return [...folders].sort((left, right) => left.sort_order - right.sort_order);
-}
-
-function normalizeFolderName(value: string) {
-  return value.trim().toLocaleLowerCase();
 }
 
 function Spinner({ className }: { className?: string }) {
