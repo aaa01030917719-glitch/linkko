@@ -30,6 +30,24 @@ function getHeaderConfig(pathname: string) {
     };
   }
 
+  if (pathname.startsWith("/links/")) {
+    return {
+      title: "링코",
+      centered: false,
+      showBack: true,
+      showSearch: false,
+    };
+  }
+
+  if (pathname === "/links" || pathname.startsWith("/links?")) {
+    return {
+      title: "링크",
+      centered: true,
+      showBack: false,
+      showSearch: false,
+    };
+  }
+
   if (pathname.startsWith("/links")) {
     return {
       title: "링크",

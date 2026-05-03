@@ -83,10 +83,7 @@ export default function AddLinkModal({
     [initialSharedText, initialUrl],
   );
 
-  const sortedFolders = useMemo(
-    () => sortFolders(availableFolders),
-    [availableFolders],
-  );
+  const sortedFolders = useMemo(() => sortFolders(availableFolders), [availableFolders]);
 
   const selectedFolder = useMemo(
     () => sortedFolders.find((folder) => folder.id === folderId) ?? null,
@@ -94,6 +91,7 @@ export default function AddLinkModal({
   );
 
   const selectedFolderLabel = selectedFolder?.name ?? UNCATEGORIZED_LABEL;
+  const customTitlePlaceholder = preview?.title?.trim() || "제목을 입력해 주세요";
 
   useEffect(() => {
     setAvailableFolders(folders);
@@ -165,10 +163,7 @@ export default function AddLinkModal({
     setUrlError("");
   }
 
-  async function prepareLinkDetails(
-    nextUrl: string,
-    nextMemoCandidate?: string | null,
-  ) {
+  async function prepareLinkDetails(nextUrl: string, nextMemoCandidate?: string | null) {
     const normalizedUrl = normalizeUrlInput(nextUrl);
     const httpUrl = getHttpUrl(normalizedUrl);
 
@@ -186,16 +181,13 @@ export default function AddLinkModal({
     }
 
     try {
-      const response = await fetch(
-        `/api/preview?url=${encodeURIComponent(httpUrl)}`,
-      );
+      const response = await fetch(`/api/preview?url=${encodeURIComponent(httpUrl)}`);
 
       if (!response.ok) {
         setPreview(null);
       } else {
         const data: LinkPreview = await response.json();
         setPreview(data);
-        setCustomTitle((currentTitle) => currentTitle || data.title || "");
       }
     } catch {
       setPreview(null);
@@ -218,8 +210,8 @@ export default function AddLinkModal({
       await onAdd(
         {
           url,
-          custom_title: customTitle || null,
-          memo: memo || null,
+          custom_title: customTitle.trim() || null,
+          memo: memo.trim() || null,
           folder_id: folderId || null,
           preview_title: preview?.title ?? null,
           preview_description: preview?.description ?? null,
@@ -253,10 +245,7 @@ export default function AddLinkModal({
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       {step === "url" ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -301,13 +290,11 @@ export default function AddLinkModal({
                     ) : null}
                   </div>
 
-                  {urlError ? (
-                    <p className="mt-1.5 pl-1 text-xs text-red-500">{urlError}</p>
-                  ) : null}
+                  {urlError ? <p className="mt-1.5 pl-1 text-xs text-red-500">{urlError}</p> : null}
 
                   {!url && sharedMemoCandidate && !initialUrl ? (
                     <p className="mt-2 pl-1 text-xs text-gray-500">
-                      공유된 텍스트는 메모로 넣어둘게요. 링크만 붙여 넣으면 바로 저장 단계로 넘어갈 수 있어요.
+                      공유한 텍스트는 메모로 넣어둘게요. 링크만 붙여 넣으면 바로 다음 단계로 넘어갈 수 있어요.
                     </p>
                   ) : null}
                 </div>
@@ -382,7 +369,7 @@ export default function AddLinkModal({
                 <input
                   value={customTitle}
                   onChange={(event) => setCustomTitle(event.target.value)}
-                  placeholder="제목을 적어 주세요"
+                  placeholder={customTitlePlaceholder}
                   className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                 />
               </div>
@@ -394,16 +381,14 @@ export default function AddLinkModal({
                 <textarea
                   value={memo}
                   onChange={(event) => setMemo(event.target.value)}
-                  placeholder="나중에 다시 볼 때 기억할 내용을 적어 보세요"
+                  placeholder="생각이나 다시 보고 싶은 내용을 적어 보세요."
                   rows={3}
                   className="w-full resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="block pl-1 text-xs font-semibold text-gray-500">
-                  폴더
-                </label>
+                <label className="block pl-1 text-xs font-semibold text-gray-500">폴더</label>
 
                 <FolderSelectTrigger
                   value={selectedFolderLabel}
@@ -413,7 +398,7 @@ export default function AddLinkModal({
                 />
 
                 <p className="pl-1 text-xs text-gray-400">
-                  기존 폴더를 선택하거나, 시트에서 새 폴더를 만들 수 있어요.
+                  기존 폴더를 선택하거나 시트에서 새 폴더를 만들 수 있어요.
                 </p>
               </div>
 
@@ -447,7 +432,7 @@ export default function AddLinkModal({
         onSelect={handleSelectFolderValue}
         onCreateFolder={onCreateFolder}
         onFolderCreated={handleFolderCreated}
-        createLabel="새 폴더 만들기"
+        createLabel="+ 새 폴더 만들기"
         specialOptions={[
           {
             value: UNCATEGORIZED_VALUE,

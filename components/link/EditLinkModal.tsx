@@ -43,7 +43,7 @@ export default function EditLinkModal({
       return;
     }
 
-    setCustomTitle(link.custom_title ?? link.preview_title ?? "");
+    setCustomTitle(link.custom_title ?? "");
     setMemo(link.memo ?? "");
     setFolderId(link.folder_id ?? "");
     setFolderSheetOpen(false);
@@ -60,8 +60,8 @@ export default function EditLinkModal({
 
     try {
       await onSave(link.id, {
-        custom_title: customTitle || null,
-        memo: memo || null,
+        custom_title: customTitle.trim() || null,
+        memo: memo.trim() || null,
         folder_id: folderId || null,
       });
       onClose();
@@ -92,6 +92,7 @@ export default function EditLinkModal({
               <input
                 value={customTitle}
                 onChange={(event) => setCustomTitle(event.target.value)}
+                placeholder={link.preview_title?.trim() || "제목을 입력해 주세요"}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               />
             </div>
@@ -104,15 +105,13 @@ export default function EditLinkModal({
                 value={memo}
                 onChange={(event) => setMemo(event.target.value)}
                 rows={3}
-                placeholder="기억하고 싶은 내용을 적어 보세요"
+                placeholder="기억하고 싶은 내용을 적어 보세요."
                 className="w-full resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="block pl-1 text-xs font-semibold text-gray-500">
-                폴더
-              </label>
+              <label className="block pl-1 text-xs font-semibold text-gray-500">폴더</label>
 
               <FolderSelectTrigger
                 value={selectedFolder?.name ?? UNCATEGORIZED_LABEL}

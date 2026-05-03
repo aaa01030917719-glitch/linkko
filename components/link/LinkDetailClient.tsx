@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import EditLinkModal from "@/components/link/EditLinkModal";
-import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import BottomSheetShell from "@/components/ui/BottomSheetShell";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import FolderSelectSheet from "@/components/ui/FolderSelectSheet";
 import FolderSelectTrigger from "@/components/ui/FolderSelectTrigger";
 import Toast from "@/components/ui/Toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useFavoriteIds } from "@/hooks/useFavoriteIds";
 import { recordRecentLink } from "@/hooks/useRecentActivity";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -41,9 +40,11 @@ export default function LinkDetailClient({ id }: Props) {
   const [moveFolderId, setMoveFolderId] = useState("");
   const [moveLoading, setMoveLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [faviconFailed, setFaviconFailed] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
   const { toast, showToast } = useToast();
+  const { favoriteIds, toggleFavorite } = useFavoriteIds("links", user?.id ?? null);
   const supabase = useMemo(() => createClient(), []);
 
   const sortedFolders = useMemo(
@@ -66,9 +67,7 @@ export default function LinkDetailClient({ id }: Props) {
         setLink(nextLink);
 
         if (nextLink.folder_id) {
-          const foundFolder = folderList.find(
-            (nextFolder) => nextFolder.id === nextLink.folder_id,
-          );
+          const foundFolder = folderList.find((nextFolder) => nextFolder.id === nextLink.folder_id);
           setFolder(foundFolder ?? null);
           setMoveFolderId(nextLink.folder_id);
         } else {
@@ -109,9 +108,7 @@ export default function LinkDetailClient({ id }: Props) {
     setMoveLoading(true);
 
     try {
-      const resolvedFolderId =
-        nextFolderId === undefined ? moveFolderId || null : nextFolderId;
-
+      const resolvedFolderId = nextFolderId === undefined ? moveFolderId || null : nextFolderId;
       const { error } = await supabase
         .from("links")
         .update({ folder_id: resolvedFolderId })
@@ -124,9 +121,7 @@ export default function LinkDetailClient({ id }: Props) {
       setLink((currentLink) =>
         currentLink ? { ...currentLink, folder_id: resolvedFolderId } : null,
       );
-      setFolder(
-        folders.find((nextFolder) => nextFolder.id === resolvedFolderId) ?? null,
-      );
+      setFolder(folders.find((nextFolder) => nextFolder.id === resolvedFolderId) ?? null);
       setMoveFolderId(resolvedFolderId ?? "");
       setMoveOpen(false);
       setMovePickerOpen(false);
@@ -178,106 +173,137 @@ export default function LinkDetailClient({ id }: Props) {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-3 pt-2">
-        <div className="mb-5 flex justify-end">
-          <div className="h-8 w-8 rounded-xl bg-gray-100" />
+      <div className="-mx-4 -mt-6 bg-white pb-36">
+        <div className="animate-pulse space-y-4 px-5 py-5">
+          <div className="h-3 w-20 rounded-full bg-gray-100" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="h-6 w-40 rounded-full bg-gray-100" />
+            <div className="flex gap-2">
+              <div className="h-8 w-8 rounded-full bg-gray-100" />
+              <div className="h-8 w-8 rounded-full bg-gray-100" />
+            </div>
+          </div>
+          <div className="h-4 w-48 rounded-full bg-gray-100" />
+          <div className="h-2 bg-bg-subtle -mx-5" />
+          <div className="h-24 rounded-xl bg-gray-100" />
         </div>
-        <div className="h-48 rounded-xl bg-gray-100" />
-        <div className="h-36 rounded-xl bg-gray-100" />
       </div>
     );
   }
 
   if (!link) {
     return (
-      <div className="py-20 text-center">
+      <div className="-mx-4 -mt-6 bg-white pb-36 px-5 py-20 text-center">
         <p className="mb-3 text-sm text-gray-400">링크를 찾을 수 없어요.</p>
-        <button onClick={() => router.back()} className="text-sm text-primary-500">
-          돌아가기
+        <button type="button" onClick={() => router.back()} className="text-sm text-brand">
+          뒤로 가기
         </button>
       </div>
     );
   }
 
   const targetUrl = getLinkTargetValue(link);
-  const title = link.custom_title || link.preview_title || extractDomain(targetUrl);
+  const domain = extractDomain(targetUrl);
+  const folderLabel = folder?.name ?? UNCATEGORIZED_LABEL;
+  const customTitle = link.custom_title?.trim() || "";
+  const previewTitle = link.preview_title?.trim() || domain || "링크";
+  const previewDescription = link.preview_description?.trim() || "";
+  const memo = link.memo?.trim() || "";
+  const previewImage = link.preview_image?.trim() || "";
   const savedDate = new Date(link.created_at).toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+  const menuTitle = customTitle || previewTitle || domain || "링크";
+  const isFavorite = favoriteIds.has(link.id);
+  const faviconUrl = targetUrl
+    ? `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(targetUrl)}`
+    : "";
 
   return (
     <>
-      <div className="mb-4 flex justify-end pt-1">
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-gray-300 transition hover:border-gray-200 hover:bg-white hover:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:bg-gray-100"
-          aria-label="링크 메뉴"
-        >
-          <DotsIcon />
-        </button>
-      </div>
+      <div className="-mx-4 -mt-6 bg-white pb-36">
+        <div className="px-5 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-brand">
+            {folderLabel}
+          </p>
 
-      <div className="mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <PreviewThumbnail
-          image={link.preview_image}
-          title={title}
-          siteName={link.preview_site_name}
-          url={targetUrl}
-          className="h-48 w-full"
-        />
-        <div className="space-y-3.5 p-5">
-          <h1 className="text-lg font-bold leading-snug text-gray-900">{title}</h1>
-          <div className="flex min-w-0 items-center gap-2">
-            {link.preview_site_name ? (
-              <>
-                <span className="shrink-0 text-sm text-gray-600">
-                  {link.preview_site_name}
-                </span>
-                <span className="text-gray-300">·</span>
-              </>
-            ) : null}
-            <span className="truncate text-xs text-gray-400">
-              {extractDomain(targetUrl)}
-            </span>
+          <div className={`flex items-start gap-3 ${customTitle ? "mt-2" : "mt-1 justify-end"}`}>
+            {customTitle ? (
+              <h1 className="min-w-0 flex-1 text-[20px] font-bold leading-tight text-[#111]">
+                {customTitle}
+              </h1>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => toggleFavorite(link.id)}
+                className="flex h-8 w-8 items-center justify-center text-[20px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                aria-label={isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                style={{ color: isFavorite ? "#F5C518" : "#ccc" }}
+              >
+                {isFavorite ? "★" : "☆"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMenuOpen(true)}
+                className="flex h-8 w-8 items-center justify-center text-[18px] leading-none text-[#ccc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                aria-label="더보기"
+              >
+                ···
+              </button>
+            </div>
           </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            {faviconUrl && !faviconFailed ? (
+              <img
+                src={faviconUrl}
+                alt=""
+                width={16}
+                height={16}
+                className="h-4 w-4 shrink-0 rounded-sm"
+                onError={() => setFaviconFailed(true)}
+              />
+            ) : (
+              <LinkIcon />
+            )}
+            <p className="min-w-0 truncate text-[12px] text-[#aaa]">{previewTitle}</p>
+          </div>
+
+          {previewDescription ? (
+            <p className="mt-3 text-[13px] leading-5 text-[#999]">{previewDescription}</p>
+          ) : null}
+        </div>
+
+        <div className="h-2 bg-[#f5f5f5]" />
+
+        <div className="space-y-4 px-5 py-5">
+          {memo ? <p className="whitespace-pre-wrap text-[14px] leading-6 text-[#333]">{memo}</p> : null}
+
+          {previewImage ? (
+            <img
+              src={previewImage}
+              alt={previewTitle}
+              className="w-full rounded-[12px] object-cover"
+            />
+          ) : null}
+
           <button
             type="button"
             onClick={handleOpenLink}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-500 py-3.5 text-sm font-bold text-white shadow-sm shadow-primary-500/20 transition hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:bg-primary-700"
+            className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-[#e0e0e0] px-4 py-3 text-[14px] font-bold text-[#111] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             <ExternalLinkIcon />
             링크 열기
           </button>
-        </div>
-      </div>
 
-      <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
-        {link.memo ? (
-          <div>
-            <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-300">
-              메모
-            </p>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
-              {link.memo}
-            </p>
-          </div>
-        ) : null}
-
-        <div>
-          <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-300">
-            폴더
-          </p>
-          <p className="text-sm text-gray-600">{folder ? folder.name : UNCATEGORIZED_LABEL}</p>
-        </div>
-
-        <div>
-          <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-300">
-            저장한 날짜
-          </p>
-          <p className="text-sm text-gray-600">{savedDate}</p>
+          <p className="text-[12px] text-[#bbb]">{savedDate}</p>
         </div>
       </div>
 
@@ -290,15 +316,12 @@ export default function LinkDetailClient({ id }: Props) {
 
       {menuOpen ? (
         <>
-          <div
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-            onClick={() => setMenuOpen(false)}
-          />
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
 
           <BottomSheetShell ariaLabel="링크 관리" onClose={() => setMenuOpen(false)}>
             <div className="px-5 pt-3">
               <h2 className="mb-1 text-base font-bold text-gray-900">링크 관리</h2>
-              <p className="mb-5 truncate text-sm text-gray-500">{title}</p>
+              <p className="mb-5 truncate text-sm text-gray-500">{menuTitle}</p>
 
               <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <ActionButton
@@ -326,7 +349,7 @@ export default function LinkDetailClient({ id }: Props) {
                     setMoveOpen(true);
                   }}
                 >
-                  폴더 이동
+                  폴더이동
                 </ActionButton>
                 <ActionDivider />
                 <ActionButton
@@ -367,17 +390,14 @@ export default function LinkDetailClient({ id }: Props) {
           >
             <div className="px-5 pt-3">
               <h2 className="mb-1 text-base font-bold text-gray-900">폴더 이동</h2>
-              <p className="mb-5 truncate text-sm text-gray-500">{title}</p>
+              <p className="mb-5 truncate text-sm text-gray-500">{menuTitle}</p>
 
               <label className="mb-1.5 block pl-1 text-xs font-semibold text-gray-500">
                 폴더
               </label>
 
               <FolderSelectTrigger
-                value={
-                  sortedFolders.find((nextFolder) => nextFolder.id === moveFolderId)?.name ??
-                  UNCATEGORIZED_LABEL
-                }
+                value={sortedFolders.find((nextFolder) => nextFolder.id === moveFolderId)?.name ?? UNCATEGORIZED_LABEL}
                 muted={!moveFolderId}
                 tone={moveFolderId ? "selected" : "neutral"}
                 onClick={() => setMovePickerOpen(true)}
@@ -468,12 +488,22 @@ function ActionDivider() {
   return <div className="mx-4 h-px bg-gray-100" />;
 }
 
-function DotsIcon() {
+function LinkIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-      <circle cx="5" cy="12" r="2" />
-      <circle cx="12" cy="12" r="2" />
-      <circle cx="19" cy="12" r="2" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#aaa"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      <path d="M15 7h3a5 5 0 0 1 0 10h-3" />
+      <path d="M9 17H6A5 5 0 1 1 6 7h3" />
+      <path d="M8 12h8" />
     </svg>
   );
 }
@@ -485,7 +515,7 @@ function ExternalLinkIcon() {
       height="15"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
+      stroke="#5B6FF5"
       strokeWidth="2.5"
       strokeLinecap="round"
       strokeLinejoin="round"
