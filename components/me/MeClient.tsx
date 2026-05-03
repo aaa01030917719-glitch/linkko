@@ -119,9 +119,7 @@ export default function MeClient() {
                 ✏
               </button>
             </div>
-            <p className="truncate text-[12px] text-muted">
-              {user?.email ?? "이메일 정보가 없어요"}
-            </p>
+            <p className="truncate text-[12px] text-muted">{user?.email ?? "이메일 정보가 없어요."}</p>
           </div>
         </div>
 
@@ -130,10 +128,8 @@ export default function MeClient() {
           <p className="text-2xl font-bold tracking-tight text-brand">{links.length}개</p>
         </div>
 
-        <div className="mt-5 h-2 bg-bg-subtle" />
-
-        <SectionLabel>계정 정보</SectionLabel>
-        <div>
+        <section className="mt-7">
+          <SectionLabel>계정 정보</SectionLabel>
           <InfoRow
             label="이름"
             value={displayName ?? "이름을 설정해 주세요"}
@@ -148,51 +144,48 @@ export default function MeClient() {
             }
           />
           <InfoRow label="이메일" value={user?.email ?? "-"} />
-        </div>
+        </section>
 
-        <div className="h-2 bg-bg-subtle" />
+        <section className="mt-7">
+          <MenuRow
+            icon="🔗"
+            iconTint="bg-brand-light"
+            title="자동 저장"
+            sub="공유하면 바로 링코에 저장"
+            onClick={() => showToast("앱에서 사용할 수 있어요.")}
+          />
+        </section>
 
-        <MenuRow
-          icon="🔗"
-          iconTint="bg-brand-light"
-          title="자동 저장"
-          sub="공유하면 바로 링코에 저장"
-          onClick={() => showToast("앱에서 사용할 수 있어요.")}
-        />
-
-        <div className="h-2 bg-bg-subtle" />
-
-        <SectionLabel>더 보기</SectionLabel>
-        <div className="grid grid-cols-2">
-          {QUICK_ACTIONS.map((item, index) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => showToast("준비 중이에요.")}
-              className={`flex items-center gap-2.5 border-b border-border-row px-5 py-3.5 text-left ${
-                index % 2 === 0 ? "border-r border-border-row" : ""
-              }`}
-            >
-              <div
-                className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-icon text-[17px]"
-                style={{ background: item.bg }}
+        <section className="mt-7">
+          <SectionLabel>더 보기</SectionLabel>
+          <div className="grid grid-cols-2 gap-y-1">
+            {QUICK_ACTIONS.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => showToast("준비 중이에요.")}
+                className="flex items-center gap-2.5 px-5 py-3.5 text-left"
               >
-                {item.icon}
-              </div>
-              <span className="text-[13px] font-medium text-ink">{item.label}</span>
-            </button>
-          ))}
-        </div>
+                <div
+                  className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-icon text-[17px]"
+                  style={{ background: item.bg }}
+                >
+                  {item.icon}
+                </div>
+                <span className="text-[13px] font-medium text-ink">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
-        <div className="h-2 bg-bg-subtle" />
+        <section className="mt-7">
+          <MenuRow title="공지사항" onClick={() => showToast("준비 중이에요.")} />
+          <MenuRow title="고객센터" onClick={() => showToast("준비 중이에요.")} />
+        </section>
 
-        <MenuRow title="공지사항" onClick={() => showToast("준비 중이에요.")} />
-        <MenuRow title="고객센터" onClick={() => showToast("준비 중이에요.")} />
-        <div className="flex items-center border-b border-border-row px-5 py-3.5">
+        <div className="mt-6 flex items-center px-5 py-3.5">
           <p className="text-[12px] text-muted">앱 정보 · 링코 v0.1.0</p>
         </div>
-
-        <div className="h-2 bg-bg-subtle" />
 
         <div className="px-5 py-3.5">
           <button
@@ -263,9 +256,7 @@ export default function MeClient() {
 }
 
 function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <p className="px-5 pt-4 pb-2 text-section-label uppercase text-muted">{children}</p>
-  );
+  return <p className="px-5 pb-3 text-section-label uppercase text-muted">{children}</p>;
 }
 
 function InfoRow({
@@ -278,7 +269,7 @@ function InfoRow({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-center border-b border-border-row px-5 py-3.5 last:border-0">
+    <div className="flex items-center px-5 py-3.5">
       <span className="w-[72px] shrink-0 text-[13px] text-muted">{label}</span>
       <span className="flex-1 text-[13px] font-medium text-ink">{value}</span>
       {action}
@@ -300,11 +291,7 @@ function MenuRow({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center border-b border-border-row px-5 py-3.5 text-left last:border-0"
-    >
+    <button type="button" onClick={onClick} className="flex w-full items-center px-5 py-3.5 text-left">
       {icon ? (
         <div
           className={`mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-icon text-base ${iconTint}`}

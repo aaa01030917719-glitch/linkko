@@ -14,7 +14,9 @@ import { useFavoriteIds } from "@/hooks/useFavoriteIds";
 import { useFolders } from "@/hooks/useFolders";
 import { useLinks } from "@/hooks/useLinks";
 import { usePendingSharedLink } from "@/hooks/usePendingSharedLink";
+import { recordRecentLink } from "@/hooks/useRecentActivity";
 import { useToast } from "@/hooks/useToast";
+import { LINK_OPEN_ERROR_MESSAGE, openLinkTarget } from "@/lib/utils/url";
 import { getUserDisplayName } from "@/lib/utils/user";
 import type { FolderWithCount, Link as LinkType } from "@/types";
 
@@ -34,9 +36,7 @@ export default function DashboardClient() {
     favoriteIds: favoriteFolderIds,
     toggleFavorite: toggleFavoriteFolder,
   } = useFavoriteIds("folders", user?.id ?? null);
-  const {
-    favoriteIds: favoriteLinkIds,
-  } = useFavoriteIds("links", user?.id ?? null);
+  const { favoriteIds: favoriteLinkIds } = useFavoriteIds("links", user?.id ?? null);
 
   const {
     folders,
@@ -135,6 +135,15 @@ export default function DashboardClient() {
     setAddOpen(false);
   }
 
+  function handleOpenLink(link: LinkType) {
+    recordRecentLink(user?.id ?? null, link);
+    const openResult = openLinkTarget(link);
+
+    if (openResult === "invalid") {
+      showToast(LINK_OPEN_ERROR_MESSAGE);
+    }
+  }
+
   return (
     <>
       <div className="-mx-4 -mt-6 bg-white pb-36">
@@ -145,10 +154,8 @@ export default function DashboardClient() {
           </h1>
         </div>
 
-        <div className="h-2 bg-bg-subtle" />
-
         {(foldersError || linksError) && (
-          <div className="px-5 py-4">
+          <div className="px-5 pt-6">
             <ErrorBanner
               message="데이터를 불러오지 못했어요."
               onRetry={() => {
@@ -159,7 +166,7 @@ export default function DashboardClient() {
           </div>
         )}
 
-        <section>
+        <section className="mt-6">
           <SectionHeader
             label="내 폴더"
             actions={
@@ -184,25 +191,23 @@ export default function DashboardClient() {
           />
         </section>
 
-        <div className="h-2 bg-bg-subtle" />
-
-        <section>
+        <section className="mt-7">
           <SectionHeader label="즐겨찾는 링크" />
           <RecentLinks
-            emptyDescription="링크를 별표해 두면 여기에서 빠르게 다시 열 수 있어요."
-            emptyTitle="아직 즐겨찾는 링크가 없어요"
+            emptyDescription="링크를 별표로 모으면 여기에서 빠르게 다시 열 수 있어요."
+            emptyTitle="아직 즐겨찾는 링크가 없어요."
             links={visibleFavoriteLinks}
             loading={loading}
+            onOpenLink={handleOpenLink}
           />
         </section>
 
-        <div className="h-2 bg-bg-subtle" />
-
-        <section>
+        <section className="mt-7">
           <SectionHeader label="최근 저장" />
           <RecentLinks
             links={recentLinks}
             loading={loading}
+            onOpenLink={handleOpenLink}
             showViewAllButton
             viewAllHref="/links"
             viewAllLabel="전체 링크 보기"
@@ -237,7 +242,7 @@ function SectionHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between px-5 pt-4 pb-2">
+    <div className="flex items-center justify-between px-5 pb-3">
       <span className="text-section-label uppercase text-muted">{label}</span>
       {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
     </div>

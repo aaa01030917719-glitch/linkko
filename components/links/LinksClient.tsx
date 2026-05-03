@@ -36,10 +36,7 @@ function getSaveSuccessMessage(folderName?: string | null) {
   return folderName ? `${folderName} 폴더에 저장했어요` : "링크를 저장했어요";
 }
 
-function sortLinksByFavoriteAndRecency(
-  sourceLinks: LinkType[],
-  favoriteIds: Set<string>,
-) {
+function sortLinksByFavoriteAndRecency(sourceLinks: LinkType[], favoriteIds: Set<string>) {
   return [...sourceLinks].sort((left, right) => {
     const favoriteDiff =
       Number(favoriteIds.has(right.id)) - Number(favoriteIds.has(left.id));
@@ -52,10 +49,7 @@ function sortLinksByFavoriteAndRecency(
   });
 }
 
-function sortFoldersByFavoriteAndOrder(
-  sourceFolders: Folder[],
-  favoriteIds: Set<string>,
-) {
+function sortFoldersByFavoriteAndOrder(sourceFolders: Folder[], favoriteIds: Set<string>) {
   return [...sourceFolders].sort((left, right) => {
     const favoriteDiff =
       Number(favoriteIds.has(right.id)) - Number(favoriteIds.has(left.id));
@@ -148,8 +142,10 @@ export default function LinksClient() {
     return sortedLinks;
   }, [favoriteLinkIds, isFavoritesFilter, sortedLinks]);
 
-  const currentFilterValue = currentFolder?.id ?? (isFavoritesFilter ? FILTER_FAVORITES : FILTER_ALL);
-  const currentFilterLabel = currentFolder?.name ?? (isFavoritesFilter ? "즐겨찾기" : "전체");
+  const currentFilterValue =
+    currentFolder?.id ?? (isFavoritesFilter ? FILTER_FAVORITES : FILTER_ALL);
+  const currentFilterLabel =
+    currentFolder?.name ?? (isFavoritesFilter ? "즐겨찾기" : "전체");
 
   useEffect(() => {
     if (!sharedUrl && !sharedText) {
@@ -395,14 +391,10 @@ export default function LinksClient() {
         {loading ? (
           <div className="space-y-1">
             {[...Array(6)].map((_, index) => (
-              <div
-                key={index}
-                className="flex min-h-12 items-center gap-3 py-2 animate-pulse"
-              >
+              <div key={index} className="flex min-h-12 animate-pulse items-center gap-3 py-2">
                 <div className="h-6 w-6 rounded-full bg-gray-100" />
                 <div className="min-w-0 flex-1">
                   <div className="h-3.5 w-3/4 rounded-full bg-gray-100" />
-                  <div className="mt-2 h-2.5 w-1/3 rounded-full bg-gray-100" />
                 </div>
                 <div className="h-4 w-4 rounded-full bg-gray-100" />
               </div>
@@ -413,28 +405,36 @@ export default function LinksClient() {
             <p className="mb-3 text-lg font-semibold text-gray-400">Linkko</p>
             <p className="text-sm font-medium text-gray-500">
               {currentFolder
-                ? `${currentFolder.name}에 저장한 링크가 아직 없어요`
+                ? `${currentFolder.name}에 저장한 링크가 아직 없어요.`
                 : isFavoritesFilter
-                  ? "즐겨찾기한 링크가 아직 없어요"
-                  : "저장한 링크가 아직 없어요"}
+                  ? "즐겨찾기한 링크가 아직 없어요."
+                  : "저장한 링크가 아직 없어요."}
             </p>
-            <p className="mt-1 text-xs text-gray-400">
-              아래 버튼으로 첫 링크를 저장해 보세요.
-            </p>
+            <p className="mt-1 text-xs text-gray-400">아래 버튼으로 첫 링크를 저장해 보세요.</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="space-y-1">
             {visibleLinks.map((link) => (
               <LinkListItem
                 key={link.id}
                 link={link}
                 onOpen={() => handleOpenLink(link)}
                 rightSlot={
-                  <FavoriteStarButton
-                    active={favoriteLinkIds.has(link.id)}
-                    label={`${link.custom_title ?? link.preview_title ?? "링크"} 즐겨찾기`}
-                    onClick={() => toggleFavoriteLink(link.id)}
-                  />
+                  <div className="ml-2 flex items-center gap-1">
+                    <FavoriteStarButton
+                      active={favoriteLinkIds.has(link.id)}
+                      label={`${link.custom_title ?? link.preview_title ?? "링크"} 즐겨찾기`}
+                      onClick={() => toggleFavoriteLink(link.id)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/links/${link.id}`)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center text-subtle transition hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      aria-label="링크 상세 보기"
+                    >
+                      <ChevronRightIcon />
+                    </button>
+                  </div>
                 }
               />
             ))}
@@ -496,12 +496,8 @@ export default function LinksClient() {
             <div className="px-5 pt-3">
               {folderSheetMode === "actions" ? (
                 <>
-                  <h2 className="mb-1 text-base font-bold text-gray-900">
-                    {currentFolder.name}
-                  </h2>
-                  <p className="mb-5 text-sm text-gray-500">
-                    폴더에서 필요한 작업을 선택해 주세요.
-                  </p>
+                  <h2 className="mb-1 text-base font-bold text-gray-900">{currentFolder.name}</h2>
+                  <p className="mb-5 text-sm text-gray-500">폴더에서 필요한 작업을 선택해 주세요.</p>
 
                   <div className="space-y-2">
                     <FolderActionButton
@@ -547,9 +543,7 @@ export default function LinksClient() {
                       className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                     />
 
-                    {renameError ? (
-                      <p className="pl-1 text-xs text-red-500">{renameError}</p>
-                    ) : null}
+                    {renameError ? <p className="pl-1 text-xs text-red-500">{renameError}</p> : null}
 
                     <div className="flex gap-2 pt-1">
                       <button

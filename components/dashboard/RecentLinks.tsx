@@ -7,6 +7,7 @@ interface RecentLinksProps {
   emptyTitle?: string;
   links: LinkType[];
   loading: boolean;
+  onOpenLink?: (link: LinkType) => void;
   showViewAllButton?: boolean;
   viewAllHref?: string;
   viewAllLabel?: string;
@@ -14,9 +15,10 @@ interface RecentLinksProps {
 
 export default function RecentLinks({
   emptyDescription = "아래 버튼으로 첫 링크를 저장해 보세요.",
-  emptyTitle = "아직 저장한 링크가 없어요",
+  emptyTitle = "아직 저장한 링크가 없어요.",
   links,
   loading,
+  onOpenLink,
   showViewAllButton = false,
   viewAllHref = "/links",
   viewAllLabel = "전체 링크 보기",
@@ -25,14 +27,10 @@ export default function RecentLinks({
     return (
       <div>
         {[...Array(5)].map((_, index) => (
-          <div
-            key={index}
-            className="flex items-center gap-3 border-b border-border-row px-5 py-3 last:border-0 animate-pulse"
-          >
+          <div key={index} className="flex animate-pulse items-center gap-3 px-5 py-3">
             <div className="h-9 w-9 rounded-icon bg-bg-subtle" />
             <div className="min-w-0 flex-1">
               <div className="h-3.5 w-3/4 rounded-full bg-bg-subtle" />
-              <div className="mt-2 h-2.5 w-1/3 rounded-full bg-bg-subtle" />
             </div>
             <div className="h-4 w-4 rounded-full bg-bg-subtle" />
           </div>
@@ -57,7 +55,8 @@ export default function RecentLinks({
           <LinkListItem
             key={link.id}
             link={link}
-            href={`/links/${link.id}`}
+            href={onOpenLink ? undefined : `/links/${link.id}`}
+            onOpen={onOpenLink ? () => onOpenLink(link) : undefined}
             rightSlot={
               <Link
                 href={`/links/${link.id}`}

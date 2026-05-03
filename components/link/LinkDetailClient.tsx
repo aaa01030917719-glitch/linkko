@@ -184,7 +184,7 @@ export default function LinkDetailClient({ id }: Props) {
             </div>
           </div>
           <div className="h-4 w-48 rounded-full bg-gray-100" />
-          <div className="h-2 bg-bg-subtle -mx-5" />
+          <div className="h-5" />
           <div className="h-24 rounded-xl bg-gray-100" />
         </div>
       </div>
@@ -244,7 +244,7 @@ export default function LinkDetailClient({ id }: Props) {
                 onClick={() => toggleFavorite(link.id)}
                 className="flex h-8 w-8 items-center justify-center text-[20px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 aria-label={isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가"}
-                style={{ color: isFavorite ? "#F5C518" : "#ccc" }}
+                style={{ color: isFavorite ? "#F5C518" : "rgba(245, 197, 24, 0.42)" }}
               >
                 {isFavorite ? "★" : "☆"}
               </button>
@@ -281,9 +281,7 @@ export default function LinkDetailClient({ id }: Props) {
           ) : null}
         </div>
 
-        <div className="h-2 bg-[#f5f5f5]" />
-
-        <div className="space-y-4 px-5 py-5">
+        <div className="space-y-4 px-5 pb-5 pt-6">
           {memo ? <p className="whitespace-pre-wrap text-[14px] leading-6 text-[#333]">{memo}</p> : null}
 
           {previewImage ? (

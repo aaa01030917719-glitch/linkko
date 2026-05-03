@@ -19,10 +19,10 @@ export default function FavoriteStarButton({
         event.stopPropagation();
         onClick();
       }}
-      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-icon p-1 transition active:bg-bg-subtle ${
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-icon p-1 transition active:bg-bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]/40 ${
         active
-          ? "text-brand hover:bg-brand-light"
-          : "text-subtle hover:bg-bg-subtle hover:text-muted"
+          ? "text-[#F5C518] hover:bg-[#F5C518]/12"
+          : "text-[#F5C518]/45 hover:bg-[#F5C518]/10 hover:text-[#F5C518]/80"
       }`}
     >
       <StarIcon active={active} />

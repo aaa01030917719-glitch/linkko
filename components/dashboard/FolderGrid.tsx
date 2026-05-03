@@ -33,10 +33,7 @@ export default function FolderGrid({
   return (
     <div>
       {folders.map((folder) => (
-        <div
-          key={folder.id}
-          className="flex items-center border-b border-border-row px-5 py-3 last:border-0"
-        >
+        <div key={folder.id} className="flex items-center px-5 py-2.5">
           <button
             type="button"
             onClick={() => router.push(`/links?folder=${folder.id}`)}

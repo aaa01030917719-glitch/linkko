@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { timeAgo } from "@/lib/utils/time";
 import { extractDomain, getLinkTargetValue } from "@/lib/utils/url";
 import type { Link as LinkType } from "@/types";
 
@@ -24,8 +23,6 @@ export default function LinkListItem({
   const fallbackTitle = domain || "링크";
   const title = link.custom_title?.trim() || link.preview_title?.trim() || fallbackTitle;
   const platform = getPlatformType(url, link.preview_site_name ?? null);
-  const savedTime = link.created_at ? timeAgo(link.created_at) : null;
-  const metaText = savedTime ? `${domain} · ${savedTime}` : domain;
   const content = (
     <>
       <div className={getPlatformIconClassName(platform)}>
@@ -34,7 +31,6 @@ export default function LinkListItem({
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{title}</p>
-        <p className="mt-0.5 truncate text-[11px] text-subtle">{metaText}</p>
       </div>
     </>
   );
@@ -43,7 +39,7 @@ export default function LinkListItem({
     "flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none";
 
   return (
-    <div className="flex items-center gap-1 border-b border-border-row px-5 py-3 last:border-0">
+    <div className="flex items-center gap-1 px-5 py-3">
       {href ? (
         <Link href={href} className={mainClassName}>
           {content}
