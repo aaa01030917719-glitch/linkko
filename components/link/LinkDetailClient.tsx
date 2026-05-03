@@ -265,9 +265,9 @@ export default function LinkDetailClient({ id }: Props) {
               <img
                 src={faviconUrl}
                 alt=""
-                width={16}
-                height={16}
-                className="h-4 w-4 shrink-0 rounded-sm"
+                width={18}
+                height={18}
+                className="h-[18px] w-[18px] shrink-0 rounded-sm"
                 onError={() => setFaviconFailed(true)}
               />
             ) : (
@@ -488,9 +488,9 @@ function ActionDivider() {
 
 function LinkIcon() {
   return (
-    <svg
-      width="16"
-      height="16"
+      <svg
+      width="18"
+      height="18"
       viewBox="0 0 24 24"
       fill="none"
       stroke="#aaa"

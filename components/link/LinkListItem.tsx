@@ -71,22 +71,22 @@ function getPlatformType(url: string, siteName: string | null) {
 
 function getPlatformIconClassName(type: PlatformType) {
   if (type === "instagram") {
-    return "flex h-9 w-9 shrink-0 items-center justify-center rounded-icon bg-[#FFF1F6] text-pink-500";
+    return "flex h-8 w-8 shrink-0 items-center justify-center text-pink-500";
   }
 
   if (type === "youtube") {
-    return "flex h-9 w-9 shrink-0 items-center justify-center rounded-icon bg-[#FFF3F1] text-red-500";
+    return "flex h-8 w-8 shrink-0 items-center justify-center text-red-500";
   }
 
-  return "flex h-9 w-9 shrink-0 items-center justify-center rounded-icon bg-bg-subtle text-muted";
+  return "flex h-8 w-8 shrink-0 items-center justify-center text-muted";
 }
 
 function PlatformIcon({ type }: { type: PlatformType }) {
   if (type === "instagram") {
     return (
       <svg
-        width="18"
-        height="18"
+        width="20"
+        height="20"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -103,7 +103,7 @@ function PlatformIcon({ type }: { type: PlatformType }) {
 
   if (type === "youtube") {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
         <path d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.8 4.6 12 4.6 12 4.6s-5.8 0-7.5.5a3 3 0 0 0-2.1 2.1C2 8.9 2 12 2 12s0 3.1.4 4.8a3 3 0 0 0 2.1 2.1c1.7.5 7.5.5 7.5.5s5.8 0 7.5-.5a3 3 0 0 0 2.1-2.1c.4-1.7.4-4.8.4-4.8s0-3.1-.4-4.8ZM10 15.5v-7l6 3.5-6 3.5Z" />
       </svg>
     );
@@ -111,8 +111,8 @@ function PlatformIcon({ type }: { type: PlatformType }) {
 
   return (
     <svg
-      width="18"
-      height="18"
+      width="20"
+      height="20"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
