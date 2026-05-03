@@ -1,8 +1,20 @@
 const SCHEME_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*:/;
 const DOMAIN_LIKE_REGEX =
   /^(?:www\.|localhost(?::\d+)?|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(?:[/?#].*)?$/;
+const BLOCKED_SCHEMES = new Set(["about", "blob", "data", "file", "javascript"]);
 
 export type LinkOpenResult = "opened" | "external" | "invalid";
+export const LINK_OPEN_ERROR_MESSAGE = "링크를 열 수 없어요. 주소를 확인해주세요.";
+
+type LinkTargetLike =
+  | string
+  | null
+  | undefined
+  | {
+      url?: unknown;
+      href?: unknown;
+      link?: unknown;
+    };
 
 declare global {
   interface Window {
@@ -12,54 +24,72 @@ declare global {
   }
 }
 
-/**
- * 사용자가 입력한 문자열을 저장/미리보기용 URL 형태로 정규화한다.
- * scheme이 없으면 https:// 를 붙인다.
- */
-export function normalizeUrlInput(url: string): string {
-  const trimmedUrl = url.trim();
+function readStringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
 
-  if (!trimmedUrl) {
+export function getLinkTargetValue(target: LinkTargetLike): string {
+  if (typeof target === "string") {
+    return target.trim();
+  }
+
+  if (!target || typeof target !== "object") {
     return "";
   }
 
-  if (SCHEME_REGEX.test(trimmedUrl)) {
-    return trimmedUrl;
-  }
-
-  if (trimmedUrl.startsWith("//")) {
-    return `https:${trimmedUrl}`;
-  }
-
-  if (DOMAIN_LIKE_REGEX.test(trimmedUrl)) {
-    return `https://${trimmedUrl}`;
-  }
-
-  return trimmedUrl;
+  return (
+    readStringValue(target.url) ||
+    readStringValue(target.href) ||
+    readStringValue(target.link)
+  );
 }
 
-export function getUrlScheme(url: string): string | null {
-  const normalizedUrl = normalizeUrlInput(url);
+export function normalizeUrlInput(target: LinkTargetLike): string {
+  const rawUrl = getLinkTargetValue(target);
+
+  if (!rawUrl) {
+    return "";
+  }
+
+  if (SCHEME_REGEX.test(rawUrl)) {
+    return rawUrl;
+  }
+
+  if (rawUrl.startsWith("//")) {
+    return `https:${rawUrl}`;
+  }
+
+  if (DOMAIN_LIKE_REGEX.test(rawUrl)) {
+    return `https://${rawUrl}`;
+  }
+
+  return rawUrl;
+}
+
+export function getUrlScheme(target: LinkTargetLike): string | null {
+  const normalizedUrl = normalizeUrlInput(target);
   const matchedScheme = normalizedUrl.match(SCHEME_REGEX);
 
   return matchedScheme ? matchedScheme[0].slice(0, -1).toLowerCase() : null;
 }
 
-/**
- * URL에서 도메인만 추출한다.
- * ex) "https://www.example.com/foo" -> "example.com"
- */
-export function extractDomain(url: string): string {
+export function extractDomain(target: LinkTargetLike): string {
+  const normalizedUrl = normalizeUrlInput(target);
+
+  if (!normalizedUrl) {
+    return "";
+  }
+
   try {
-    const { hostname } = new URL(normalizeUrlInput(url));
+    const { hostname } = new URL(normalizedUrl);
     return hostname.replace(/^www\./, "");
   } catch {
-    return url;
+    return normalizedUrl;
   }
 }
 
-export function getHttpUrl(url: string): string | null {
-  const normalizedUrl = normalizeUrlInput(url);
+export function getHttpUrl(target: LinkTargetLike): string | null {
+  const normalizedUrl = normalizeUrlInput(target);
 
   try {
     const parsedUrl = new URL(normalizedUrl);
@@ -74,11 +104,8 @@ export function getHttpUrl(url: string): string | null {
   }
 }
 
-/**
- * http/https 기반의 일반 링크인지 확인한다.
- */
-export function isValidUrl(url: string): boolean {
-  return getHttpUrl(url) !== null;
+export function isValidUrl(target: LinkTargetLike): boolean {
+  return getHttpUrl(target) !== null;
 }
 
 function requestNativeExternalOpen(url: string) {
@@ -99,18 +126,31 @@ function requestNativeExternalOpen(url: string) {
   return true;
 }
 
-/**
- * 저장된 링크를 현재 환경에서 가장 안전한 방식으로 연다.
- * - http/https: 새 탭
- * - 앱 스킴: RN WebView 브리지 또는 브라우저 location
- * - 그 외: invalid
- */
-export function openLinkTarget(url: string): LinkOpenResult {
+function openInNewTab(url: string) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    const nextWindow = window.open(url, "_blank", "noopener,noreferrer");
+
+    if (nextWindow) {
+      nextWindow.opener = null;
+    }
+
+    return nextWindow !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function openLinkTarget(target: LinkTargetLike): LinkOpenResult {
   if (typeof window === "undefined") {
     return "invalid";
   }
 
-  const normalizedUrl = normalizeUrlInput(url);
+  const normalizedUrl = normalizeUrlInput(target);
+
   if (!normalizedUrl) {
     return "invalid";
   }
@@ -122,8 +162,7 @@ export function openLinkTarget(url: string): LinkOpenResult {
       return "external";
     }
 
-    window.open(httpUrl, "_blank", "noopener,noreferrer");
-    return "opened";
+    return openInNewTab(httpUrl) ? "opened" : "invalid";
   }
 
   const scheme = getUrlScheme(normalizedUrl);
@@ -132,14 +171,13 @@ export function openLinkTarget(url: string): LinkOpenResult {
     return "invalid";
   }
 
+  if (BLOCKED_SCHEMES.has(scheme)) {
+    return "invalid";
+  }
+
   if (requestNativeExternalOpen(normalizedUrl)) {
     return "external";
   }
 
-  try {
-    window.location.assign(normalizedUrl);
-    return "external";
-  } catch {
-    return "invalid";
-  }
+  return openInNewTab(normalizedUrl) ? "opened" : "invalid";
 }

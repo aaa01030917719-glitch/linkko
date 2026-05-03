@@ -9,85 +9,25 @@ const NAV_ITEMS = [
     href: "/dashboard",
     label: "홈",
     activeOn: ["/dashboard"],
-    icon: (active: boolean) => (
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill={active ? "#6C5CE7" : "none"}
-        stroke={active ? "#6C5CE7" : "#AAAAAA"}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline
-          points="9 22 9 12 15 12 15 22"
-          stroke={active ? "#6C5CE7" : "#AAAAAA"}
-          fill="none"
-        />
-      </svg>
-    ),
+    icon: HomeIcon,
   },
   {
     href: "/links",
     label: "링크",
     activeOn: ["/links"],
-    icon: (active: boolean) => (
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={active ? "#6C5CE7" : "#AAAAAA"}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-      </svg>
-    ),
+    icon: LinkIcon,
   },
   {
     href: "/search",
     label: "검색",
     activeOn: ["/search"],
-    icon: (active: boolean) => (
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={active ? "#6C5CE7" : "#AAAAAA"}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-    ),
+    icon: SearchIcon,
   },
   {
     href: "/me",
     label: "마이",
     activeOn: ["/me"],
-    icon: (active: boolean) => (
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill={active ? "#6C5CE7" : "none"}
-        stroke={active ? "#6C5CE7" : "#AAAAAA"}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-    ),
+    icon: UserIcon,
   },
 ];
 
@@ -95,9 +35,9 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-10 border-t border-gray-100 bg-white">
+    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-border-row bg-white">
       <div className="mx-auto flex max-w-2xl">
-        {NAV_ITEMS.map(({ href, label, activeOn, icon }) => {
+        {NAV_ITEMS.map(({ href, label, activeOn, icon: Icon }) => {
           const active = activeOn.some((value) => pathname.startsWith(value));
 
           return (
@@ -105,16 +45,91 @@ export default function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                "flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs font-medium transition",
-                active ? "text-primary-500" : "text-gray-400",
+                "flex flex-1 flex-col items-center gap-0.5 pt-2 pb-3.5 text-[10px] font-medium transition",
+                active ? "text-brand" : "text-subtle",
               )}
             >
-              {icon(active)}
+              <Icon active={active} />
               <span>{label}</span>
             </Link>
           );
         })}
       </div>
     </nav>
+  );
+}
+
+function HomeIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="leading-none"
+    >
+      <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1V9.5Z" />
+    </svg>
+  );
+}
+
+function LinkIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={active ? "text-brand" : "text-subtle"}
+    >
+      <path d="M10 13a5 5 0 0 0 7.1.5l2.9-2.9a5 5 0 0 0-7.1-7.1l-1.7 1.7" />
+      <path d="M14 11a5 5 0 0 0-7.1-.5L4 13.4a5 5 0 0 0 7.1 7.1l1.7-1.7" />
+    </svg>
+  );
+}
+
+function SearchIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={active ? "text-brand" : "text-subtle"}
+    >
+      <circle cx="11" cy="11" r="7.5" />
+      <line x1="20" y1="20" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function UserIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="leading-none"
+    >
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
   );
 }

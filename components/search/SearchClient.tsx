@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import LinkListItem from "@/components/link/LinkListItem";
 import FilterChip from "@/components/ui/FilterChip";
@@ -19,10 +19,10 @@ import {
   useRecentSearches,
 } from "@/hooks/useRecentActivity";
 import { useToast } from "@/hooks/useToast";
-import { openLinkTarget } from "@/lib/utils/url";
+import { LINK_OPEN_ERROR_MESSAGE, openLinkTarget } from "@/lib/utils/url";
 import type { Folder, Link as LinkType } from "@/types";
 
-const FOLDER_EMOJIS = ["📁", "💜", "🐱", "📌", "📝", "🌿", "🎧", "🧠", "📚", "✨"];
+const FOLDER_EMOJIS = ["📁", "💜", "🐱", "📌", "📝", "🎧", "🧸", "🎬", "🛋️", "📚"];
 
 export default function SearchClient() {
   const router = useRouter();
@@ -58,9 +58,7 @@ export default function SearchClient() {
       return [] as Folder[];
     }
 
-    return folders.filter((folder) =>
-      folder.name.toLowerCase().includes(normalizedQuery),
-    );
+    return folders.filter((folder) => folder.name.toLowerCase().includes(normalizedQuery));
   }, [folders, hasQuery, normalizedQuery]);
 
   const filteredLinks = useMemo(() => {
@@ -97,9 +95,7 @@ export default function SearchClient() {
     return recentFolderRecords
       .map((record) => {
         const currentFolder = folders.find((folder) => folder.id === record.id);
-        return currentFolder
-          ? { id: currentFolder.id, name: currentFolder.name }
-          : record;
+        return currentFolder ? { id: currentFolder.id, name: currentFolder.name } : record;
       })
       .slice(0, 3);
   }, [folders, recentFolderRecords]);
@@ -107,10 +103,10 @@ export default function SearchClient() {
   function handleOpenLink(link: Partial<LinkType> & { id: string }) {
     recordRecentLink(user?.id ?? null, link);
 
-    const openResult = openLinkTarget(link.url ?? "");
+    const openResult = openLinkTarget(link);
 
     if (openResult === "invalid") {
-      showToast("열 수 없는 링크예요.");
+      showToast(LINK_OPEN_ERROR_MESSAGE);
     }
   }
 
@@ -121,20 +117,18 @@ export default function SearchClient() {
 
   return (
     <>
-      <div className="space-y-6 pb-10">
-        <header className="pt-2">
-          <h2 className="mb-4 text-2xl font-bold text-gray-900">검색</h2>
-
-          <div className="relative">
-            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+      <div className="-mx-4 -mt-6 bg-white pb-36">
+        <div className="px-5 pt-4 pb-4">
+          <div className="flex items-center gap-2 rounded-[10px] bg-bg-subtle px-3.5 py-2.5">
+            <span className="text-sm text-muted">
               <SearchIcon />
-            </div>
+            </span>
             <input
               ref={inputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="제목, 메모, URL, 폴더명으로 찾기"
-              className="w-full rounded-2xl bg-gray-100 py-3.5 pl-11 pr-10 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-gray-200"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-subtle"
               autoComplete="off"
             />
             {query ? (
@@ -144,89 +138,48 @@ export default function SearchClient() {
                   setQuery("");
                   inputRef.current?.focus();
                 }}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 transition hover:text-gray-600"
+                className="text-subtle transition hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 aria-label="검색어 지우기"
               >
                 <ClearIcon />
               </button>
             ) : null}
           </div>
-        </header>
-
-        {recentSearches.length > 0 ? (
-          <section>
-            <h3 className="mb-3 text-[13px] font-medium text-gray-600">최근 검색어</h3>
-            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-              {recentSearches.map((term) => (
-                <FilterChip key={term} onClick={() => setQuery(term)}>
-                  {term}
-                </FilterChip>
-              ))}
-            </div>
-          </section>
-        ) : null}
+        </div>
 
         {hasQuery ? (
-          <section className="space-y-5">
-            <p className="text-xs text-gray-400">
-              {loading
-                ? "검색 중..."
-                : `폴더 ${filteredFolders.length}개 · 링크 ${filteredLinks.length}개`}
-            </p>
-
+          <>
             {loading ? (
               <LoadingList />
             ) : filteredFolders.length === 0 && filteredLinks.length === 0 ? (
-              <div className="py-14 text-center">
-                <p className="text-sm font-semibold text-gray-700">검색 결과가 없어요</p>
-                <p className="mt-1 text-xs text-gray-400">
-                  다른 검색어로 다시 찾아보세요.
-                </p>
+              <div className="px-5 py-10">
+                <p className="text-sm font-medium text-body">검색 결과가 없어요</p>
+                <p className="mt-1 text-[12px] text-muted">다른 검색어로 다시 찾아보세요.</p>
               </div>
             ) : (
               <>
                 {filteredFolders.length > 0 ? (
-                  <section>
-                    <h3 className="mb-3 text-[13px] font-medium text-gray-600">
-                      폴더 결과
-                    </h3>
-                    <div className="divide-y divide-gray-100">
+                  <>
+                    <div className="h-2 bg-bg-subtle" />
+                    <SectionHeader label="폴더 결과" />
+                    <div>
                       {filteredFolders.map((folder) => (
-                        <button
+                        <FolderRow
                           key={folder.id}
-                          type="button"
+                          folder={folder}
+                          meta="폴더로 이동"
                           onClick={() => handleOpenFolder(folder)}
-                          className="flex min-h-12 w-full items-center gap-2.5 py-2 text-left transition hover:bg-gray-50 active:bg-gray-100"
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="shrink-0 text-lg leading-none"
-                          >
-                            {getFolderEmoji(folder)}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[15px] font-semibold text-gray-900">
-                              {folder.name}
-                            </p>
-                            <p className="mt-0.5 text-[11px] text-gray-400">
-                              폴더로 이동
-                            </p>
-                          </div>
-                          <span className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center text-gray-300">
-                            <ArrowIcon />
-                          </span>
-                        </button>
+                        />
                       ))}
                     </div>
-                  </section>
+                  </>
                 ) : null}
 
                 {filteredLinks.length > 0 ? (
-                  <section>
-                    <h3 className="mb-3 text-[13px] font-medium text-gray-600">
-                      링크 결과
-                    </h3>
-                    <div className="divide-y divide-gray-100">
+                  <>
+                    <div className="h-2 bg-bg-subtle" />
+                    <SectionHeader label="링크 결과" />
+                    <div>
                       {filteredLinks.map((link) => (
                         <LinkListItem
                           key={link.id}
@@ -236,7 +189,7 @@ export default function SearchClient() {
                             <Link
                               href={`/links/${link.id}`}
                               aria-label="링크 상세 보기"
-                              className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-300 transition hover:bg-gray-100 hover:text-gray-500 active:bg-gray-200"
+                              className="ml-2 flex h-7 w-7 shrink-0 items-center justify-center text-subtle transition hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                             >
                               <ArrowIcon />
                             </Link>
@@ -244,83 +197,110 @@ export default function SearchClient() {
                         />
                       ))}
                     </div>
-                  </section>
+                  </>
                 ) : null}
               </>
             )}
-          </section>
+          </>
         ) : (
           <>
-            <section>
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-[13px] font-medium text-gray-600">최근 링크</h3>
-              </div>
-
-              {recentLinks.length > 0 ? (
-                <div className="divide-y divide-gray-100">
-                  {recentLinks.map((link) => (
-                    <LinkListItem
-                      key={link.id}
-                      link={link}
-                      onOpen={() => handleOpenLink(link)}
-                    />
+            {recentSearches.length > 0 ? (
+              <>
+                <div className="h-2 bg-bg-subtle" />
+                <SectionLabel>최근 검색어</SectionLabel>
+                <div className="flex flex-wrap gap-1.5 px-5 pb-4">
+                  {recentSearches.map((term) => (
+                    <FilterChip key={term} onClick={() => setQuery(term)}>
+                      {term}
+                    </FilterChip>
                   ))}
                 </div>
-              ) : (
-                <EmptySectionMessage
-                  title="최근에 연 링크가 없어요"
-                  description="링크를 열면 여기에서 다시 빠르게 볼 수 있어요."
-                />
-              )}
-            </section>
+              </>
+            ) : null}
 
-            <section>
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-[13px] font-medium text-gray-600">최근 폴더</h3>
+            <div className="h-2 bg-bg-subtle" />
+            <SectionHeader label="최근 링크" />
+            {recentLinks.length > 0 ? (
+              <div>
+                {recentLinks.map((link) => (
+                  <LinkListItem key={link.id} link={link} onOpen={() => handleOpenLink(link)} />
+                ))}
               </div>
+            ) : (
+              <EmptySectionMessage
+                title="최근에 연 링크가 없어요"
+                description="링크를 열면 여기에서 빠르게 다시 볼 수 있어요."
+              />
+            )}
 
-              {recentFolders.length > 0 ? (
-                <div className="divide-y divide-gray-100">
-                  {recentFolders.map((folder) => (
-                    <button
-                      key={folder.id}
-                      type="button"
-                      onClick={() => handleOpenFolder(folder)}
-                      className="flex min-h-12 w-full items-center gap-2.5 py-2 text-left transition hover:bg-gray-50 active:bg-gray-100"
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="shrink-0 text-lg leading-none"
-                      >
-                        {getFolderEmoji(folder)}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-semibold text-gray-900">
-                          {folder.name}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-gray-400">
-                          최근 본 폴더
-                        </p>
-                      </div>
-                      <span className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center text-gray-300">
-                        <ArrowIcon />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <EmptySectionMessage
-                  title="최근에 연 폴더가 없어요"
-                  description="폴더를 열면 여기에서 다시 빠르게 볼 수 있어요."
-                />
-              )}
-            </section>
+            <div className="h-2 bg-bg-subtle" />
+            <SectionHeader label="최근 폴더" />
+            {recentFolders.length > 0 ? (
+              <div>
+                {recentFolders.map((folder) => (
+                  <FolderRow
+                    key={folder.id}
+                    folder={folder}
+                    meta="최근에 본 폴더"
+                    onClick={() => handleOpenFolder(folder)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptySectionMessage
+                title="최근에 연 폴더가 없어요"
+                description="폴더를 열면 여기에서 빠르게 다시 볼 수 있어요."
+              />
+            )}
           </>
         )}
       </div>
 
       {toast ? <Toast message={toast} /> : null}
     </>
+  );
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="px-5 pt-4 pb-2 text-section-label uppercase text-muted">{children}</p>
+  );
+}
+
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-between px-5 pt-4 pb-2">
+      <span className="text-section-label uppercase text-muted">{label}</span>
+    </div>
+  );
+}
+
+function FolderRow({
+  folder,
+  meta,
+  onClick,
+}: {
+  folder: Pick<Folder, "id" | "name">;
+  meta: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center border-b border-border-row px-5 py-3 text-left last:border-0"
+    >
+      <div className="mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-icon bg-bg-subtle text-base">
+        {getFolderEmoji(folder)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-ink">{folder.name}</p>
+        <p className="mt-0.5 text-[11px] text-subtle">{meta}</p>
+      </div>
+      <span className="ml-2 flex h-7 w-7 shrink-0 items-center justify-center text-subtle">
+        <ArrowIcon />
+      </span>
+    </button>
   );
 }
 
@@ -337,18 +317,18 @@ function getFolderEmoji(folder: Pick<Folder, "id" | "name">) {
 
 function LoadingList() {
   return (
-    <div className="space-y-1">
+    <div>
       {[...Array(4)].map((_, index) => (
         <div
           key={index}
-          className="flex min-h-12 items-center gap-3 py-2 animate-pulse"
+          className="flex items-center gap-3 border-b border-border-row px-5 py-3 last:border-0 animate-pulse"
         >
-          <div className="h-6 w-6 rounded-full bg-gray-100" />
+          <div className="h-9 w-9 rounded-icon bg-bg-subtle" />
           <div className="min-w-0 flex-1">
-            <div className="h-3.5 w-3/4 rounded-full bg-gray-100" />
-            <div className="mt-2 h-2.5 w-1/3 rounded-full bg-gray-100" />
+            <div className="h-3.5 w-3/4 rounded-full bg-bg-subtle" />
+            <div className="mt-2 h-2.5 w-1/3 rounded-full bg-bg-subtle" />
           </div>
-          <div className="h-4 w-4 rounded-full bg-gray-100" />
+          <div className="h-4 w-4 rounded-full bg-bg-subtle" />
         </div>
       ))}
     </div>
@@ -363,9 +343,9 @@ function EmptySectionMessage({
   description: string;
 }) {
   return (
-    <div className="py-8">
-      <p className="text-sm font-semibold text-gray-500">{title}</p>
-      <p className="mt-1 text-xs text-gray-400">{description}</p>
+    <div className="px-5 py-6">
+      <p className="text-sm font-medium text-body">{title}</p>
+      <p className="mt-1 text-[12px] text-muted">{description}</p>
     </div>
   );
 }
@@ -373,8 +353,8 @@ function EmptySectionMessage({
 function SearchIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -382,8 +362,8 @@ function SearchIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      <circle cx="11" cy="11" r="7.5" />
+      <line x1="20" y1="20" x2="16.65" y2="16.65" />
     </svg>
   );
 }

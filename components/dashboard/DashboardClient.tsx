@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import FolderGrid from "@/components/dashboard/FolderGrid";
 import RecentLinks from "@/components/dashboard/RecentLinks";
 import FolderManager from "@/components/folder/FolderManager";
@@ -89,10 +89,7 @@ export default function DashboardClient() {
     () => links.filter((link) => favoriteLinkIds.has(link.id)),
     [favoriteLinkIds, links],
   );
-  const visibleFavoriteLinks = useMemo(
-    () => favoriteLinks.slice(0, 5),
-    [favoriteLinks],
-  );
+  const visibleFavoriteLinks = useMemo(() => favoriteLinks.slice(0, 5), [favoriteLinks]);
   const recentLinks = useMemo(() => links.slice(0, 10), [links]);
 
   useEffect(() => {
@@ -105,15 +102,19 @@ export default function DashboardClient() {
 
   async function handleAddLink(
     payload: Partial<LinkType>,
-    options?: { folderName?: string | null },
+    options?: {
+      folderName?: string | null;
+      source: "external-share" | "in-app";
+    },
   ) {
     try {
-      await addLink(payload);
+      const savedLink = await addLink(payload);
       setAddOpen(false);
       setInitialFolderId(undefined);
       clearPendingSharedLink();
       await Promise.all([refetchLinks(), refetchFolders()]);
       showToast(getSaveSuccessMessage(options?.folderName));
+      return { savedLinkId: savedLink.id };
     } catch {
       showToast("링크를 저장하지 못했어요. 다시 시도해 주세요.");
     }
@@ -136,38 +137,45 @@ export default function DashboardClient() {
 
   return (
     <>
-      <div className="space-y-7 pb-36">
-        <header className="pt-2">
-          <h2 className="text-2xl font-bold leading-tight text-gray-900">
+      <div className="-mx-4 -mt-6 bg-white pb-36">
+        <div className="px-5 pt-5 pb-1">
+          <p className="mb-0.5 text-[11px] font-medium text-muted">환영합니다</p>
+          <h1 className="text-[22px] font-bold tracking-tight text-ink">
             {displayName ? `안녕하세요, ${displayName}님 👋` : "안녕하세요 👋"}
-          </h2>
-        </header>
+          </h1>
+        </div>
+
+        <div className="h-2 bg-bg-subtle" />
 
         {(foldersError || linksError) && (
-          <ErrorBanner
-            message="데이터를 불러오지 못했어요."
-            onRetry={() => {
-              void refetchLinks();
-              void refetchFolders();
-            }}
-          />
+          <div className="px-5 py-4">
+            <ErrorBanner
+              message="데이터를 불러오지 못했어요."
+              onRetry={() => {
+                void refetchLinks();
+                void refetchFolders();
+              }}
+            />
+          </div>
         )}
 
         <section>
-          <div className="mb-2.5 flex items-center justify-between">
-            <h3 className="text-[13px] font-medium text-gray-600">내 폴더</h3>
-            <div className="flex items-center gap-3">
-              {hasMoreFolders ? (
-                <Link
-                  href="/folders"
-                  className="text-sm font-semibold text-gray-500 transition hover:text-gray-700"
-                >
-                  더보기
-                </Link>
-              ) : null}
-              <FolderManager onCreate={createFolder} />
-            </div>
-          </div>
+          <SectionHeader
+            label="내 폴더"
+            actions={
+              <>
+                {hasMoreFolders ? (
+                  <Link
+                    href="/folders"
+                    className="text-[12px] font-semibold text-brand transition hover:opacity-80"
+                  >
+                    더보기
+                  </Link>
+                ) : null}
+                <FolderManager onCreate={createFolder} />
+              </>
+            }
+          />
           <FolderGrid
             favoriteFolderIds={favoriteFolderIds}
             folders={visibleFolders}
@@ -176,28 +184,22 @@ export default function DashboardClient() {
           />
         </section>
 
+        <div className="h-2 bg-bg-subtle" />
+
         <section>
-          <div className="mb-2.5 flex items-center justify-between">
-            <h3 className="text-[13px] font-medium text-gray-600">즐겨찾는 링크</h3>
-            {favoriteLinks.length > 5 ? (
-              <Link
-                href="/links"
-                className="text-sm font-semibold text-gray-500 transition hover:text-gray-700"
-              >
-                전체 보기
-              </Link>
-            ) : null}
-          </div>
+          <SectionHeader label="즐겨찾는 링크" />
           <RecentLinks
-            emptyDescription="링크 목록에서 별 버튼을 누르면 여기에 모여요"
+            emptyDescription="링크를 별표해 두면 여기에서 빠르게 다시 열 수 있어요."
             emptyTitle="아직 즐겨찾는 링크가 없어요"
             links={visibleFavoriteLinks}
             loading={loading}
           />
         </section>
 
+        <div className="h-2 bg-bg-subtle" />
+
         <section>
-          <h3 className="mb-2.5 text-[13px] font-medium text-gray-600">최근 저장</h3>
+          <SectionHeader label="최근 저장" />
           <RecentLinks
             links={recentLinks}
             loading={loading}
@@ -217,11 +219,27 @@ export default function DashboardClient() {
         initialFolderId={initialFolderId}
         initialSharedText={sharedText}
         initialUrl={sharedUrl}
+        saveSource="in-app"
         onAdd={handleAddLink}
         onCreateFolder={createFolder}
       />
 
       {toast ? <Toast message={toast} /> : null}
     </>
+  );
+}
+
+function SectionHeader({
+  label,
+  actions,
+}: {
+  label: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between px-5 pt-4 pb-2">
+      <span className="text-section-label uppercase text-muted">{label}</span>
+      {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
+    </div>
   );
 }

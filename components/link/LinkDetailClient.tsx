@@ -14,7 +14,12 @@ import Toast from "@/components/ui/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { recordRecentLink } from "@/hooks/useRecentActivity";
 import { useToast } from "@/hooks/useToast";
-import { extractDomain, openLinkTarget } from "@/lib/utils/url";
+import {
+  extractDomain,
+  getLinkTargetValue,
+  LINK_OPEN_ERROR_MESSAGE,
+  openLinkTarget,
+} from "@/lib/utils/url";
 import type { Folder, Link as LinkType } from "@/types";
 
 interface Props {
@@ -164,10 +169,10 @@ export default function LinkDetailClient({ id }: Props) {
     }
 
     recordRecentLink(user?.id ?? null, link);
-    const openResult = openLinkTarget(link.url);
+    const openResult = openLinkTarget(link);
 
     if (openResult === "invalid") {
-      showToast("열 수 없는 링크예요.");
+      showToast(LINK_OPEN_ERROR_MESSAGE);
     }
   }
 
@@ -194,7 +199,8 @@ export default function LinkDetailClient({ id }: Props) {
     );
   }
 
-  const title = link.custom_title || link.preview_title || extractDomain(link.url);
+  const targetUrl = getLinkTargetValue(link);
+  const title = link.custom_title || link.preview_title || extractDomain(targetUrl);
   const savedDate = new Date(link.created_at).toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
@@ -219,7 +225,7 @@ export default function LinkDetailClient({ id }: Props) {
           image={link.preview_image}
           title={title}
           siteName={link.preview_site_name}
-          url={link.url}
+          url={targetUrl}
           className="h-48 w-full"
         />
         <div className="space-y-3.5 p-5">
@@ -234,7 +240,7 @@ export default function LinkDetailClient({ id }: Props) {
               </>
             ) : null}
             <span className="truncate text-xs text-gray-400">
-              {extractDomain(link.url)}
+              {extractDomain(targetUrl)}
             </span>
           </div>
           <button

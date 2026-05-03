@@ -1,7 +1,12 @@
 "use client";
 
 import PreviewThumbnail from "@/components/link/PreviewThumbnail";
-import { extractDomain, openLinkTarget } from "@/lib/utils/url";
+import {
+  extractDomain,
+  getLinkTargetValue,
+  LINK_OPEN_ERROR_MESSAGE,
+  openLinkTarget,
+} from "@/lib/utils/url";
 import { timeAgo } from "@/lib/utils/time";
 import type { Link } from "@/types";
 
@@ -12,14 +17,17 @@ interface LinkCardProps {
 }
 
 export default function LinkCard({ link, onEdit, onDelete }: LinkCardProps) {
-  const title = link.custom_title || link.preview_title || extractDomain(link.url);
+  const targetUrl = getLinkTargetValue(link);
+  const title = link.custom_title || link.preview_title || extractDomain(targetUrl);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
       <button
         type="button"
         onClick={() => {
-          openLinkTarget(link.url);
+          if (openLinkTarget(link) === "invalid") {
+            window.alert(LINK_OPEN_ERROR_MESSAGE);
+          }
         }}
         className="flex w-full gap-3 p-3 text-left transition hover:bg-gray-50 active:bg-gray-100"
       >
@@ -28,14 +36,14 @@ export default function LinkCard({ link, onEdit, onDelete }: LinkCardProps) {
           image={link.preview_image}
           title={title}
           siteName={link.preview_site_name}
-          url={link.url}
+          url={targetUrl}
           className="w-16 h-16 rounded-xl"
         />
 
         {/* 텍스트 */}
         <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
           <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug">{title}</p>
-          <p className="text-xs text-gray-400">{extractDomain(link.url)}</p>
+          <p className="text-xs text-gray-400">{extractDomain(targetUrl)}</p>
           <p className="text-xs text-gray-300">{timeAgo(link.created_at)}</p>
         </div>
       </button>

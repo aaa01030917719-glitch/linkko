@@ -9,6 +9,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        brand: "#5B6FF5",
+        "brand-light": "#EEF0FE",
+        ink: "#111111",
+        body: "#333333",
+        muted: "#999999",
+        subtle: "#BBBBBB",
+        "bg-subtle": "#F5F5F5",
+        "bg-section": "#F5F5F5",
+        "border-row": "#F0F0F0",
+        "border-card": "#E0E0E0",
+        danger: "#FF3B30",
         primary: {
           50: "#f0eeff",
           100: "#ddd8ff",
@@ -32,6 +43,22 @@ const config: Config = {
       },
       screens: {
         xs: "375px",
+      },
+      borderRadius: {
+        icon: "10px",
+        stat: "14px",
+        avatar: "16px",
+        chip: "9999px",
+      },
+      fontSize: {
+        "section-label": [
+          "11px",
+          {
+            lineHeight: "1.4",
+            letterSpacing: "0.06em",
+            fontWeight: "600",
+          },
+        ],
       },
     },
   },

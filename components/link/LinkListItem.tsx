@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { timeAgo } from "@/lib/utils/time";
-import { extractDomain } from "@/lib/utils/url";
+import { extractDomain, getLinkTargetValue } from "@/lib/utils/url";
 import type { Link as LinkType } from "@/types";
 
 interface LinkListItemProps {
@@ -19,15 +19,10 @@ export default function LinkListItem({
   onOpen,
   rightSlot,
 }: LinkListItemProps) {
-  const url = link.url ?? "";
-  const domain = url
-    ? extractDomain(url)
-    : link.preview_site_name?.trim() || "링크";
+  const url = getLinkTargetValue(link);
+  const domain = url ? extractDomain(url) : link.preview_site_name?.trim() || "링크";
   const fallbackTitle = domain || "링크";
-  const title =
-    link.custom_title?.trim() ||
-    link.preview_title?.trim() ||
-    fallbackTitle;
+  const title = link.custom_title?.trim() || link.preview_title?.trim() || fallbackTitle;
   const platform = getPlatformType(url, link.preview_site_name ?? null);
   const savedTime = link.created_at ? timeAgo(link.created_at) : null;
   const metaText = savedTime ? `${domain} · ${savedTime}` : domain;
@@ -38,32 +33,23 @@ export default function LinkListItem({
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-medium text-gray-900">
-          {title}
-        </p>
-        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-400">
-          <span className="truncate">{metaText}</span>
-        </div>
+        <p className="truncate text-sm font-medium text-ink">{title}</p>
+        <p className="mt-0.5 truncate text-[11px] text-subtle">{metaText}</p>
       </div>
     </>
   );
 
   const mainClassName =
-    "flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl py-2 text-left transition hover:bg-gray-50 active:bg-gray-100";
+    "flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none";
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 border-b border-border-row px-5 py-3 last:border-0">
       {href ? (
         <Link href={href} className={mainClassName}>
           {content}
         </Link>
       ) : (
-        <button
-          type="button"
-          onClick={onOpen}
-          className={mainClassName}
-          disabled={!onOpen}
-        >
+        <button type="button" onClick={onOpen} className={mainClassName} disabled={!onOpen}>
           {content}
         </button>
       )}
@@ -89,14 +75,14 @@ function getPlatformType(url: string, siteName: string | null) {
 
 function getPlatformIconClassName(type: PlatformType) {
   if (type === "instagram") {
-    return "flex h-6 w-6 shrink-0 items-center justify-center text-pink-500";
+    return "flex h-9 w-9 shrink-0 items-center justify-center rounded-icon bg-[#FFF1F6] text-pink-500";
   }
 
   if (type === "youtube") {
-    return "flex h-6 w-6 shrink-0 items-center justify-center text-red-500";
+    return "flex h-9 w-9 shrink-0 items-center justify-center rounded-icon bg-[#FFF3F1] text-red-500";
   }
 
-  return "flex h-6 w-6 shrink-0 items-center justify-center text-gray-400";
+  return "flex h-9 w-9 shrink-0 items-center justify-center rounded-icon bg-bg-subtle text-muted";
 }
 
 function PlatformIcon({ type }: { type: PlatformType }) {

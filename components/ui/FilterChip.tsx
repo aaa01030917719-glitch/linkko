@@ -23,10 +23,10 @@ export default function FilterChip({
       type={type}
       onClick={onClick}
       className={cn(
-        "min-h-[40px] shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2",
+        "min-h-[32px] shrink-0 whitespace-nowrap rounded-chip border px-3 py-1 text-[12px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
         active
-          ? "border-primary-200 bg-primary-50 font-semibold text-primary-600"
-          : "border-gray-200 bg-white font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 active:bg-gray-50",
+          ? "border-brand bg-brand-light font-semibold text-brand"
+          : "border-[#E8E8E8] bg-white font-medium text-body hover:border-border-card hover:text-ink active:bg-bg-subtle",
         className,
       )}
     >

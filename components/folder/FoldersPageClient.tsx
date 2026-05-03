@@ -71,14 +71,18 @@ export default function FoldersPageClient() {
 
   async function handleAddLink(
     payload: Partial<Link>,
-    options?: { folderName?: string | null },
+    options?: {
+      folderName?: string | null;
+      source: "external-share" | "in-app";
+    },
   ) {
     try {
-      await addLink(payload);
+      const savedLink = await addLink(payload);
       setAddOpen(false);
       setInitialFolderId(undefined);
       await Promise.all([refetchLinks(), refetchFolders()]);
       showToast(getSaveSuccessMessage(options?.folderName));
+      return { savedLinkId: savedLink.id };
     } catch {
       showToast("링크를 저장하지 못했어요. 다시 시도해 주세요.");
     }
@@ -88,7 +92,7 @@ export default function FoldersPageClient() {
     <>
       <div className="space-y-6 pb-28">
         <header className="flex items-center justify-between pt-2">
-          <h2 className="text-2xl font-bold text-gray-900">내 폴더</h2>
+          <h2 className="text-2xl font-bold text-gray-900">전체 폴더</h2>
           <FolderManager onCreate={createFolder} />
         </header>
 
@@ -121,6 +125,7 @@ export default function FoldersPageClient() {
         }}
         folders={folders}
         initialFolderId={initialFolderId}
+        saveSource="in-app"
         onAdd={handleAddLink}
         onCreateFolder={createFolder}
       />

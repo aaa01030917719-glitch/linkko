@@ -15,10 +15,14 @@ interface AddLinkModalProps {
   initialFolderId?: string | null;
   initialSharedText?: string | null;
   initialUrl?: string | null;
+  saveSource?: "external-share" | "in-app";
   onAdd: (
     payload: Partial<Link>,
-    options?: { folderName?: string | null },
-  ) => Promise<void>;
+    options?: {
+      folderName?: string | null;
+      source: "external-share" | "in-app";
+    },
+  ) => Promise<{ savedLinkId?: string | null } | void>;
   onCreateFolder: (name: string) => Promise<Folder>;
 }
 
@@ -55,6 +59,7 @@ export default function AddLinkModal({
   initialFolderId,
   initialSharedText,
   initialUrl,
+  saveSource = "in-app",
   onAdd,
   onCreateFolder,
 }: AddLinkModalProps) {
@@ -223,6 +228,7 @@ export default function AddLinkModal({
         },
         {
           folderName: selectedFolder?.name ?? null,
+          source: saveSource,
         },
       );
     } finally {

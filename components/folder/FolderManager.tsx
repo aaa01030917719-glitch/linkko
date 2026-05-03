@@ -41,21 +41,18 @@ export default function FolderManager({ onCreate }: FolderManagerProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="px-0 py-1 text-sm font-semibold text-primary-500 transition hover:text-primary-600 active:text-primary-700"
+        className="text-[12px] font-semibold text-brand transition hover:opacity-80"
       >
-        새 폴더
+        + 새 폴더
       </button>
 
       {open ? (
         <>
-          <div
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          />
+          <div className="fixed inset-0 z-50 bg-black/45" onClick={() => setOpen(false)} />
 
-          <BottomSheetShell>
+          <BottomSheetShell ariaLabel="새 폴더" onClose={() => setOpen(false)}>
             <div className="px-5 pt-3">
-              <h2 className="mb-5 text-lg font-bold text-gray-900">새 폴더</h2>
+              <h2 className="mb-5 text-lg font-semibold text-ink">새 폴더</h2>
 
               <div className="space-y-3">
                 <input
@@ -71,19 +68,17 @@ export default function FolderManager({ onCreate }: FolderManagerProps) {
                     }
                   }}
                   placeholder="폴더 이름"
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  className="w-full rounded-[10px] border border-border-card px-4 py-3 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-light"
                   autoFocus
                 />
 
-                {error ? (
-                  <p className="pl-1 text-xs text-red-500">{error}</p>
-                ) : null}
+                {error ? <p className="pl-1 text-xs text-danger">{error}</p> : null}
 
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="flex-1 rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+                    className="flex-1 rounded-md border border-border-card bg-white py-3 text-sm font-semibold text-body transition hover:bg-bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   >
                     취소
                   </button>
@@ -91,7 +86,7 @@ export default function FolderManager({ onCreate }: FolderManagerProps) {
                     type="button"
                     onClick={() => void handleCreate()}
                     disabled={loading}
-                    className="flex-1 rounded-2xl bg-primary-500 py-3.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50 shadow-md shadow-primary-500/25"
+                    className="flex-1 rounded-md bg-brand py-3 text-sm font-semibold text-white transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
                   >
                     {loading ? "추가 중..." : "추가"}
                   </button>

@@ -1,6 +1,11 @@
 import PreviewThumbnail from "@/components/link/PreviewThumbnail";
 import Highlight from "@/components/search/Highlight";
-import { extractDomain, openLinkTarget } from "@/lib/utils/url";
+import {
+  extractDomain,
+  getLinkTargetValue,
+  LINK_OPEN_ERROR_MESSAGE,
+  openLinkTarget,
+} from "@/lib/utils/url";
 import type { Folder, Link } from "@/types";
 
 interface SearchResultCardProps {
@@ -18,8 +23,9 @@ export default function SearchResultCard({
   onEdit,
   onDelete,
 }: SearchResultCardProps) {
-  const title = link.custom_title || link.preview_title || extractDomain(link.url);
-  const domain = extractDomain(link.url);
+  const targetUrl = getLinkTargetValue(link);
+  const title = link.custom_title || link.preview_title || extractDomain(targetUrl);
+  const domain = extractDomain(targetUrl);
   const folder = folders.find((f) => f.id === link.folder_id);
 
   return (
@@ -27,7 +33,9 @@ export default function SearchResultCard({
       <button
         type="button"
         onClick={() => {
-          openLinkTarget(link.url);
+          if (openLinkTarget(link) === "invalid") {
+            window.alert(LINK_OPEN_ERROR_MESSAGE);
+          }
         }}
         className="flex w-full gap-3 p-3.5 text-left transition hover:bg-gray-50 active:bg-gray-100"
       >
@@ -36,7 +44,7 @@ export default function SearchResultCard({
           image={link.preview_image}
           title={title}
           siteName={link.preview_site_name}
-          url={link.url}
+          url={targetUrl}
           className="w-[60px] h-[60px] rounded-xl"
         />
 

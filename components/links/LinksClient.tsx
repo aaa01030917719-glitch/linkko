@@ -19,11 +19,12 @@ import { useLinks } from "@/hooks/useLinks";
 import { usePendingSharedLink } from "@/hooks/usePendingSharedLink";
 import { recordRecentFolder, recordRecentLink } from "@/hooks/useRecentActivity";
 import { useToast } from "@/hooks/useToast";
-import { openLinkTarget } from "@/lib/utils/url";
+import { LINK_OPEN_ERROR_MESSAGE, openLinkTarget } from "@/lib/utils/url";
 import type { Folder, Link as LinkType } from "@/types";
 
 interface SaveOptions {
   folderName?: string | null;
+  source: "external-share" | "in-app";
 }
 
 type FolderSheetMode = "actions" | "rename";
@@ -76,9 +77,11 @@ export default function LinksClient() {
   const searchParams = useSearchParams();
   const folderParam = searchParams.get("folder");
   const filterParam = searchParams.get("filter");
+  const sourceParam = searchParams.get("source");
   const querySharedText = searchParams.get("sharedText");
   const querySharedUrl = searchParams.get("sharedUrl");
   const isFavoritesFilter = filterParam === "favorites";
+  const isExternalShareEntry = sourceParam === "external-share";
 
   const renameInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -197,13 +200,6 @@ export default function LinksClient() {
   function buildLinksPath(nextValue?: string) {
     const nextSearchParams = new URLSearchParams();
 
-    for (const key of ["shared", "sharedText", "sharedUrl", "t"]) {
-      const value = searchParams.get(key);
-      if (value) {
-        nextSearchParams.set(key, value);
-      }
-    }
-
     if (nextValue === FILTER_FAVORITES) {
       nextSearchParams.set("filter", "favorites");
     } else if (nextValue && nextValue !== FILTER_ALL) {
@@ -218,13 +214,46 @@ export default function LinksClient() {
     router.replace(buildLinksPath(nextValue), { scroll: false });
   }
 
+  function clearPendingSharedState() {
+    clearPendingSharedLink();
+  }
+
+  function clearSharedQuery() {
+    if (
+      !searchParams.has("shared") &&
+      !searchParams.has("sharedText") &&
+      !searchParams.has("sharedUrl") &&
+      !searchParams.has("t") &&
+      !searchParams.has("source")
+    ) {
+      return;
+    }
+
+    router.replace(buildLinksPath(currentFilterValue), { scroll: false });
+  }
+
+  function clearSharedEntry() {
+    clearPendingSharedState();
+    clearSharedQuery();
+  }
+
   async function handleAdd(payload: Partial<LinkType>, options?: SaveOptions) {
     try {
-      await addLink(payload);
+      const savedLink = await addLink(payload);
       setAddOpen(false);
-      clearSharedEntry();
+      clearPendingSharedState();
+
+      if (options?.source === "external-share") {
+        router.replace(savedLink?.id ? `/links/${savedLink.id}` : "/links", {
+          scroll: false,
+        });
+        return { savedLinkId: savedLink?.id ?? null };
+      }
+
+      clearSharedQuery();
       await Promise.all([refetchLinks(), refetchFolders()]);
       showToast(getSaveSuccessMessage(options?.folderName));
+      return { savedLinkId: savedLink?.id ?? null };
     } catch {
       showToast("링크를 저장하지 못했어요. 다시 시도해 주세요.");
     }
@@ -299,21 +328,6 @@ export default function LinksClient() {
     }
   }
 
-  function clearSharedEntry() {
-    clearPendingSharedLink();
-
-    if (
-      !searchParams.has("shared") &&
-      !searchParams.has("sharedText") &&
-      !searchParams.has("sharedUrl") &&
-      !searchParams.has("t")
-    ) {
-      return;
-    }
-
-    router.replace(buildLinksPath(currentFilterValue), { scroll: false });
-  }
-
   function handleOpenAddLink() {
     clearSharedEntry();
     setAddOpen(true);
@@ -326,10 +340,10 @@ export default function LinksClient() {
 
   function handleOpenLink(link: LinkType) {
     recordRecentLink(user?.id ?? null, link);
-    const openResult = openLinkTarget(link.url);
+    const openResult = openLinkTarget(link);
 
     if (openResult === "invalid") {
-      showToast("열 수 없는 링크예요.");
+      showToast(LINK_OPEN_ERROR_MESSAGE);
     }
   }
 
@@ -399,10 +413,10 @@ export default function LinksClient() {
             <p className="mb-3 text-lg font-semibold text-gray-400">Linkko</p>
             <p className="text-sm font-medium text-gray-500">
               {currentFolder
-                ? `${currentFolder.name}에 저장된 링크가 아직 없어요.`
+                ? `${currentFolder.name}에 저장한 링크가 아직 없어요`
                 : isFavoritesFilter
-                  ? "즐겨찾기한 링크가 아직 없어요."
-                  : "저장한 링크가 아직 없어요."}
+                  ? "즐겨찾기한 링크가 아직 없어요"
+                  : "저장한 링크가 아직 없어요"}
             </p>
             <p className="mt-1 text-xs text-gray-400">
               아래 버튼으로 첫 링크를 저장해 보세요.
@@ -437,6 +451,7 @@ export default function LinksClient() {
         initialFolderId={currentFolder?.id}
         initialSharedText={sharedText}
         initialUrl={sharedUrl}
+        saveSource={isExternalShareEntry ? "external-share" : "in-app"}
         onAdd={handleAdd}
         onCreateFolder={createFolder}
       />
@@ -481,10 +496,10 @@ export default function LinksClient() {
             <div className="px-5 pt-3">
               {folderSheetMode === "actions" ? (
                 <>
-                  <h2 className="mb-1 text-lg font-bold text-gray-900">
+                  <h2 className="mb-1 text-base font-bold text-gray-900">
                     {currentFolder.name}
                   </h2>
-                  <p className="mb-5 text-sm text-gray-400">
+                  <p className="mb-5 text-sm text-gray-500">
                     폴더에서 필요한 작업을 선택해 주세요.
                   </p>
 
