@@ -69,7 +69,7 @@ function sortFoldersByFavoriteAndOrder(sourceFolders: Folder[], favoriteIds: Set
 export default function LinksClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const folderParam = searchParams.get("folder");
+  const folderParam = searchParams.get("folder") ?? searchParams.get("folderId");
   const filterParam = searchParams.get("filter");
   const sourceParam = searchParams.get("source");
   const querySharedText = searchParams.get("sharedText");
@@ -239,17 +239,22 @@ export default function LinksClient() {
       setAddOpen(false);
       clearPendingSharedState();
 
-      if (options?.source === "external-share") {
-        router.replace(savedLink?.id ? `/links/${savedLink.id}` : "/links", {
-          scroll: false,
-        });
-        return { savedLinkId: savedLink?.id ?? null };
+      if (!savedLink?.id) {
+        clearSharedQuery();
+        return { savedLinkId: null };
       }
 
-      clearSharedQuery();
+      if (options?.source === "external-share") {
+        router.replace(`/links/${savedLink.id}`, {
+          scroll: false,
+        });
+        return { savedLinkId: savedLink.id };
+      }
+
       await Promise.all([refetchLinks(), refetchFolders()]);
       showToast(getSaveSuccessMessage(options?.folderName));
-      return { savedLinkId: savedLink?.id ?? null };
+      router.push(`/links/${savedLink.id}`);
+      return { savedLinkId: savedLink.id };
     } catch {
       showToast("링크를 저장하지 못했어요. 다시 시도해 주세요.");
     }

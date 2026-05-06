@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import FolderGrid from "@/components/dashboard/FolderGrid";
 import FolderManager from "@/components/folder/FolderManager";
 import AddLinkModal from "@/components/link/AddLinkModal";
@@ -18,6 +19,7 @@ function getSaveSuccessMessage(folderName?: string | null) {
 }
 
 export default function FoldersPageClient() {
+  const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [initialFolderId, setInitialFolderId] = useState<string | null | undefined>(
     undefined,
@@ -82,6 +84,9 @@ export default function FoldersPageClient() {
       setInitialFolderId(undefined);
       await Promise.all([refetchLinks(), refetchFolders()]);
       showToast(getSaveSuccessMessage(options?.folderName));
+      if (savedLink?.id) {
+        router.push(`/links/${savedLink.id}`);
+      }
       return { savedLinkId: savedLink.id };
     } catch {
       showToast("링크를 저장하지 못했어요. 다시 시도해 주세요.");
