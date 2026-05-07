@@ -350,23 +350,25 @@ export default function LinksClient() {
 
   return (
     <>
-      <div className="space-y-4 pb-36">
-        <header className="space-y-2 pt-2">
+      <div className="-mx-4 -mt-6 bg-white pb-36">
+        <header className="space-y-2 px-5 pt-5 pb-1">
           <h2 className="text-2xl font-bold text-gray-900">저장한 링크</h2>
           <p className="text-sm text-gray-500">필요할 때 다시 열어보세요</p>
         </header>
 
         {(foldersError || linksError) && (
-          <ErrorBanner
-            message={linksError ?? foldersError ?? "데이터를 불러오지 못했어요."}
-            onRetry={() => {
-              void refetchLinks();
-              void refetchFolders();
-            }}
-          />
+          <div className="px-5 pt-6">
+            <ErrorBanner
+              message={linksError ?? foldersError ?? "데이터를 불러오지 못했어요."}
+              onRetry={() => {
+                void refetchLinks();
+                void refetchFolders();
+              }}
+            />
+          </div>
         )}
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="mt-6 flex items-center justify-between gap-3 px-5">
           <div className="min-w-0 flex-1">
             <FolderSelectTrigger
               value={currentFilterLabel}
@@ -394,19 +396,19 @@ export default function LinksClient() {
         </div>
 
         {loading ? (
-          <div className="space-y-1">
+          <div className="mt-4 space-y-1">
             {[...Array(6)].map((_, index) => (
-              <div key={index} className="flex min-h-12 animate-pulse items-center gap-3 py-2">
-                <div className="h-6 w-6 rounded-full bg-gray-100" />
+              <div key={index} className="flex min-h-12 animate-pulse items-center gap-3 px-5 py-3">
+                <div className="h-9 w-9 rounded-icon bg-bg-subtle" />
                 <div className="min-w-0 flex-1">
-                  <div className="h-3.5 w-3/4 rounded-full bg-gray-100" />
+                  <div className="h-3.5 w-3/4 rounded-full bg-bg-subtle" />
                 </div>
-                <div className="h-4 w-4 rounded-full bg-gray-100" />
+                <div className="h-4 w-4 rounded-full bg-bg-subtle" />
               </div>
             ))}
           </div>
         ) : visibleLinks.length === 0 ? (
-          <div className="py-16 text-center">
+          <div className="mt-4 px-5 py-16 text-center">
             <p className="mb-3 text-lg font-semibold text-gray-400">Linkko</p>
             <p className="text-sm font-medium text-gray-500">
               {currentFolder
@@ -418,7 +420,7 @@ export default function LinksClient() {
             <p className="mt-1 text-xs text-gray-400">아래 버튼으로 첫 링크를 저장해 보세요.</p>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="mt-4 space-y-1">
             {visibleLinks.map((link) => (
               <LinkListItem
                 key={link.id}
