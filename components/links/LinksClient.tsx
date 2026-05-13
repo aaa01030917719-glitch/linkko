@@ -9,6 +9,7 @@ import BottomSheetShell from "@/components/ui/BottomSheetShell";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import FavoriteStarButton from "@/components/ui/FavoriteStarButton";
+import FilterChip from "@/components/ui/FilterChip";
 import FolderSelectSheet from "@/components/ui/FolderSelectSheet";
 import FolderSelectTrigger from "@/components/ui/FolderSelectTrigger";
 import Toast from "@/components/ui/Toast";
@@ -368,6 +369,12 @@ export default function LinksClient() {
           </div>
         )}
 
+        <FolderFilterStrip
+          currentValue={currentFilterValue}
+          folders={sortedFolders}
+          onSelect={replaceFilter}
+        />
+
         <div className="mt-6 flex items-center justify-between gap-3 px-5">
           <div className="min-w-0 flex-1">
             <FolderSelectTrigger
@@ -592,6 +599,41 @@ export default function LinksClient() {
 
       {toast ? <Toast message={toast} /> : null}
     </>
+  );
+}
+
+function FolderFilterStrip({
+  currentValue,
+  folders,
+  onSelect,
+}: {
+  currentValue: string;
+  folders: Folder[];
+  onSelect: (nextValue: string) => void;
+}) {
+  return (
+    <div className="mt-5">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-1 scroll-pl-5 touch-pan-x">
+        <FilterChip
+          active={currentValue === FILTER_ALL}
+          onClick={() => onSelect(FILTER_ALL)}
+          className="min-h-[38px] rounded-[14px] px-4 text-[13px]"
+        >
+          전체
+        </FilterChip>
+
+        {folders.map((folder) => (
+          <FilterChip
+            key={folder.id}
+            active={currentValue === folder.id}
+            onClick={() => onSelect(folder.id)}
+            className="min-h-[38px] max-w-[180px] rounded-[14px] px-4 text-[13px]"
+          >
+            <span className="block truncate">{folder.name}</span>
+          </FilterChip>
+        ))}
+      </div>
+    </div>
   );
 }
 
