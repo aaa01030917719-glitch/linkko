@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import EditLinkModal from "@/components/link/EditLinkModal";
 import BottomSheetShell from "@/components/ui/BottomSheetShell";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import FavoriteStarButton from "@/components/ui/FavoriteStarButton";
 import FolderSelectSheet from "@/components/ui/FolderSelectSheet";
 import FolderSelectTrigger from "@/components/ui/FolderSelectTrigger";
 import Toast from "@/components/ui/Toast";
@@ -216,6 +217,8 @@ export default function LinkDetailClient({ id }: Props) {
     day: "numeric",
   });
   const menuTitle = customTitle || previewTitle || domain || "링크";
+  const linkTitle = customTitle || previewTitle || domain || "링크";
+  const sourceLabel = domain || previewTitle;
   const isFavorite = favoriteIds.has(link.id);
   const faviconUrl = targetUrl
     ? `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(targetUrl)}`
@@ -225,40 +228,31 @@ export default function LinkDetailClient({ id }: Props) {
     <>
       <div className="-mx-4 -mt-6 bg-white pb-36">
         <div className="px-5 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-brand">
-            {folderLabel}
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 truncate text-[12px] font-semibold text-gray-400">
+              {folderLabel}
+            </p>
 
-          <div className={`flex items-start gap-3 ${customTitle ? "mt-2" : "mt-1 justify-end"}`}>
-            {customTitle ? (
-              <h1 className="min-w-0 flex-1 text-[20px] font-bold leading-tight text-[#111]">
-                {customTitle}
-              </h1>
-            ) : (
-              <div className="flex-1" />
-            )}
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
+            <div className="flex shrink-0 items-center gap-0.5">
+              <FavoriteStarButton
+                active={isFavorite}
+                label={isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가"}
                 onClick={() => toggleFavorite(link.id)}
-                className="flex h-8 w-8 items-center justify-center text-[20px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                aria-label={isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가"}
-                style={{ color: isFavorite ? "#F5C518" : "rgba(245, 197, 24, 0.42)" }}
-              >
-                {isFavorite ? "★" : "☆"}
-              </button>
-
+              />
               <button
                 type="button"
                 onClick={() => setMenuOpen(true)}
-                className="flex h-8 w-8 items-center justify-center text-[18px] leading-none text-[#ccc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="flex h-7 w-7 items-center justify-center rounded-icon text-[#bbb] transition hover:bg-gray-100 hover:text-[#888] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 aria-label="더보기"
               >
-                ···
+                <DotsIcon />
               </button>
             </div>
           </div>
+
+          <h1 className="mt-2 min-w-0 text-[21px] font-bold leading-tight text-[#111]">
+            {linkTitle}
+          </h1>
 
           <div className="mt-3 flex items-center gap-2">
             {faviconUrl && !faviconFailed ? (
@@ -273,7 +267,7 @@ export default function LinkDetailClient({ id }: Props) {
             ) : (
               <LinkIcon />
             )}
-            <p className="min-w-0 truncate text-[12px] text-[#aaa]">{previewTitle}</p>
+            <p className="min-w-0 truncate text-[12px] text-[#aaa]">{sourceLabel}</p>
           </div>
 
           {previewDescription ? (
@@ -484,6 +478,16 @@ function ActionButton({
 
 function ActionDivider() {
   return <div className="mx-4 h-px bg-gray-100" />;
+}
+
+function DotsIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </svg>
+  );
 }
 
 function LinkIcon() {

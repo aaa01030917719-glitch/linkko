@@ -8,8 +8,9 @@ import type { FolderWithCount } from "@/types";
 interface FolderGridProps {
   favoriteFolderIds: Set<string>;
   folders: FolderWithCount[];
-  onAddLink: (folderId: string) => void;
+  onAddLink?: (folderId: string) => void;
   onToggleFavorite: (folderId: string) => void;
+  variant?: "default" | "compact";
 }
 
 const FOLDER_EMOJIS = ["📁", "🗂️", "🧺", "🪴", "🧾", "🎞️", "🧩", "🧠", "🛍️", "🧵"];
@@ -19,8 +20,10 @@ export default function FolderGrid({
   folders,
   onAddLink,
   onToggleFavorite,
+  variant = "default",
 }: FolderGridProps) {
   const router = useRouter();
+  const compact = variant === "compact";
 
   function openFolder(folderId: string) {
     router.push(`/links?folder=${folderId}`);
@@ -49,45 +52,56 @@ export default function FolderGrid({
   return (
     <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 scroll-pl-5 touch-pan-x">
       {folders.map((folder) => (
-        <article key={folder.id} className="w-[220px] shrink-0 snap-start">
+        <article
+          key={folder.id}
+          className={`${compact ? "w-[176px]" : "w-[220px]"} shrink-0 snap-start`}
+        >
           <div
             role="link"
             tabIndex={0}
             onClick={() => openFolder(folder.id)}
             onKeyDown={(event) => handleCardKeyDown(event, folder.id)}
             aria-label={`${folder.name} 폴더 열기`}
-            className="flex min-h-[144px] flex-col rounded-[24px] border border-[#E5E7EB] bg-white p-4 text-left shadow-[0_1px_0_rgba(17,17,17,0.03)] transition hover:border-[#D1D5DB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.99]"
+            className={
+              compact
+                ? "flex min-h-[84px] flex-col justify-center rounded-[18px] border border-[#E5E7EB] bg-white px-4 py-3 text-left shadow-[0_1px_0_rgba(17,17,17,0.03)] transition hover:border-[#D1D5DB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.99]"
+                : "flex min-h-[144px] flex-col rounded-[24px] border border-[#E5E7EB] bg-white p-4 text-left shadow-[0_1px_0_rgba(17,17,17,0.03)] transition hover:border-[#D1D5DB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.99]"
+            }
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#F8FAFC] text-[22px] shadow-[inset_0_0_0_1px_rgba(17,17,17,0.06)]">
-                <span aria-hidden="true">{getFolderEmoji(folder)}</span>
+            {compact ? null : (
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#F8FAFC] text-[22px] shadow-[inset_0_0_0_1px_rgba(17,17,17,0.06)]">
+                  <span aria-hidden="true">{getFolderEmoji(folder)}</span>
+                </div>
+
+                <FavoriteStarButton
+                  active={favoriteFolderIds.has(folder.id)}
+                  label={`${folder.name} 폴더 즐겨찾기`}
+                  onClick={() => onToggleFavorite(folder.id)}
+                />
               </div>
+            )}
 
-              <FavoriteStarButton
-                active={favoriteFolderIds.has(folder.id)}
-                label={`${folder.name} 폴더 즐겨찾기`}
-                onClick={() => onToggleFavorite(folder.id)}
-              />
-            </div>
-
-            <div className="mt-4 min-w-0">
+            <div className={compact ? "min-w-0" : "mt-4 min-w-0"}>
               <p className="truncate text-[15px] font-semibold text-ink">{folder.name}</p>
               <p className="mt-1 text-[12px] text-muted">{folder.link_count}개 링크</p>
             </div>
 
-            <div className="mt-auto flex justify-end pt-5">
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onAddLink(folder.id);
-                }}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-brand shadow-[inset_0_0_0_1px_rgba(91,111,245,0.16)] transition hover:bg-brand-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand active:bg-brand-light"
-                aria-label={`${folder.name}에 링크 추가`}
-              >
-                <PlusIcon />
-              </button>
-            </div>
+            {!compact && onAddLink ? (
+              <div className="mt-auto flex justify-end pt-5">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onAddLink(folder.id);
+                  }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-brand shadow-[inset_0_0_0_1px_rgba(91,111,245,0.16)] transition hover:bg-brand-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand active:bg-brand-light"
+                  aria-label={`${folder.name}에 링크 추가`}
+                >
+                  <PlusIcon />
+                </button>
+              </div>
+            ) : null}
           </div>
         </article>
       ))}

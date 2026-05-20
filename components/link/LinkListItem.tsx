@@ -36,10 +36,10 @@ export default function LinkListItem({
   );
 
   const mainClassName =
-    "flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none";
+    "flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none";
 
   return (
-    <div className="flex items-center gap-1 px-5 py-3">
+    <div className="flex items-center gap-0.5 px-5 py-3">
       {href ? (
         <Link href={href} className={mainClassName}>
           {content}

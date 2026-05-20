@@ -19,7 +19,7 @@ export default function FavoriteStarButton({
         event.stopPropagation();
         onClick();
       }}
-      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-icon p-1 transition active:bg-bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]/40 ${
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-icon p-0.5 transition active:bg-bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C518]/40 ${
         active
           ? "text-[#F5C518] hover:bg-[#F5C518]/12"
           : "text-[#F5C518]/45 hover:bg-[#F5C518]/10 hover:text-[#F5C518]/80"
@@ -38,7 +38,7 @@ function StarIcon({ active }: { active: boolean }) {
       viewBox="0 0 24 24"
       fill={active ? "currentColor" : "none"}
       stroke="currentColor"
-      strokeWidth="1.9"
+      strokeWidth={active ? "2.05" : "2.25"}
       strokeLinecap="round"
       strokeLinejoin="round"
     >

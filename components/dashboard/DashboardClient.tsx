@@ -178,7 +178,7 @@ export default function DashboardClient() {
               <>
                 {hasMoreFolders ? (
                   <Link
-                    href="/folders"
+                    href="/links"
                     className="text-[12px] font-semibold text-brand transition hover:opacity-80"
                   >
                     더보기
@@ -191,8 +191,8 @@ export default function DashboardClient() {
           <FolderGrid
             favoriteFolderIds={favoriteFolderIds}
             folders={visibleFolders}
-            onAddLink={(folderId) => handleOpenAddLink(folderId)}
             onToggleFavorite={toggleFavoriteFolder}
+            variant="compact"
           />
         </section>
 
