@@ -16,10 +16,24 @@
     --color-muted: #999999;
     --color-subtle: #bbbbbb;
     --color-danger: #ff3b30;
+    --linkko-font-scale: 1;
+  }
+
+  html[data-font-size="default"] {
+    --linkko-font-scale: 1;
+  }
+
+  html[data-font-size="medium"] {
+    --linkko-font-scale: 1.07;
+  }
+
+  html[data-font-size="large"] {
+    --linkko-font-scale: 1.15;
   }
 
   html {
     -webkit-text-size-adjust: 100%;
+    font-size: calc(16px * var(--linkko-font-scale));
   }
 
   body {
@@ -60,5 +74,50 @@
 
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  html[data-font-size] .text-\[10px\] {
+    font-size: calc(10px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[11px\],
+  html[data-font-size] .text-section-label {
+    font-size: calc(11px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[12px\] {
+    font-size: calc(12px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[13px\] {
+    font-size: calc(13px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[14px\] {
+    font-size: calc(14px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[15px\] {
+    font-size: calc(15px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[17px\] {
+    font-size: calc(17px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[18px\] {
+    font-size: calc(18px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[20px\] {
+    font-size: calc(20px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[21px\] {
+    font-size: calc(21px * var(--linkko-font-scale));
+  }
+
+  html[data-font-size] .text-\[22px\] {
+    font-size: calc(22px * var(--linkko-font-scale));
   }
 }

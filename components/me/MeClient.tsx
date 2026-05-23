@@ -18,6 +18,23 @@ const QUICK_ACTIONS = [
   { label: "개인정보", icon: "🔒", bg: "#F2F7EC" },
 ];
 
+type FontSizeSetting = "default" | "medium" | "large";
+
+const FONT_SIZE_STORAGE_KEY = "linkko:settings:font-size";
+const FONT_SIZE_OPTIONS: Array<{ label: string; value: FontSizeSetting }> = [
+  { label: "기본", value: "default" },
+  { label: "중간", value: "medium" },
+  { label: "크게", value: "large" },
+];
+
+function isFontSizeSetting(value: string | null): value is FontSizeSetting {
+  return value === "default" || value === "medium" || value === "large";
+}
+
+function applyFontSizeSetting(value: FontSizeSetting) {
+  document.documentElement.dataset.fontSize = value;
+}
+
 export default function MeClient() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -31,10 +48,24 @@ export default function MeClient() {
   const [nameError, setNameError] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [fontSizeSetting, setFontSizeSetting] = useState<FontSizeSetting>("default");
 
   useEffect(() => {
     setDisplayName(getUserDisplayName(user));
   }, [user]);
+
+  useEffect(() => {
+    try {
+      const storedValue = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY);
+      const nextValue = isFontSizeSetting(storedValue) ? storedValue : "default";
+
+      setFontSizeSetting(nextValue);
+      applyFontSizeSetting(nextValue);
+    } catch {
+      setFontSizeSetting("default");
+      applyFontSizeSetting("default");
+    }
+  }, []);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -45,6 +76,17 @@ export default function MeClient() {
     setNameDraft(displayName ?? "");
     setNameError("");
     setEditOpen(true);
+  }
+
+  function handleFontSizeChange(nextValue: FontSizeSetting) {
+    setFontSizeSetting(nextValue);
+    applyFontSizeSetting(nextValue);
+
+    try {
+      window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, nextValue);
+    } catch {
+      showToast("글씨 크기 설정을 저장하지 못했어요.");
+    }
   }
 
   async function handleSaveName() {
@@ -144,6 +186,40 @@ export default function MeClient() {
             }
           />
           <InfoRow label="이메일" value={user?.email ?? "-"} />
+        </section>
+
+        <section className="mt-7">
+          <SectionLabel>설정</SectionLabel>
+          <div className="px-5">
+            <div className="rounded-stat border border-border-card bg-white p-4">
+              <div>
+                <p className="text-sm font-semibold text-ink">글씨 크기</p>
+                <p className="mt-1 text-[12px] text-muted">읽기 편한 크기를 선택해 주세요.</p>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {FONT_SIZE_OPTIONS.map((option) => {
+                  const active = fontSizeSetting === option.value;
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => handleFontSizeChange(option.value)}
+                      className={`min-h-[44px] rounded-[10px] border px-2 text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                        active
+                          ? "border-brand bg-brand-light text-brand"
+                          : "border-border-card bg-white text-body hover:bg-bg-subtle"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="mt-7">
