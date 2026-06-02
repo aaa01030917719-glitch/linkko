@@ -17,7 +17,12 @@ import { useLinks } from "@/hooks/useLinks";
 import { usePendingSharedLink } from "@/hooks/usePendingSharedLink";
 import { recordRecentFolder, recordRecentLink } from "@/hooks/useRecentActivity";
 import { useToast } from "@/hooks/useToast";
-import { LINK_OPEN_ERROR_MESSAGE, openLinkTarget } from "@/lib/utils/url";
+import {
+  extractDomain,
+  getLinkTargetValue,
+  LINK_OPEN_ERROR_MESSAGE,
+  openLinkTarget,
+} from "@/lib/utils/url";
 import type { Folder, Link as LinkType } from "@/types";
 
 interface SaveOptions {
@@ -31,6 +36,7 @@ const FILTER_ALL = "__all__";
 const FILTER_FAVORITES = "__favorites__";
 const UNCATEGORIZED_FOLDER_ID = "__uncategorized__";
 const EXPANDED_FOLDER_IDS_STORAGE_KEY = "linkko:links:expanded-folder-ids";
+const WIDGET_RECENT_LINKS_MESSAGE_TYPE = "LINKKO_WIDGET_RECENT_LINKS";
 
 interface LinkFolderGroup {
   id: string;
@@ -71,6 +77,43 @@ function sortFoldersByFavoriteAndOrder(sourceFolders: Folder[], favoriteIds: Set
 
     return left.name.localeCompare(right.name, "ko");
   });
+}
+
+function sortLinksByCreatedAtDesc(sourceLinks: LinkType[]) {
+  return [...sourceLinks].sort(
+    (left, right) =>
+      new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+  );
+}
+
+function getWidgetLinkTitle(link: LinkType) {
+  const url = getLinkTargetValue(link);
+  const domain = url ? extractDomain(url) : link.preview_site_name?.trim() || "링크";
+
+  return link.custom_title?.trim() || link.preview_title?.trim() || domain || "링크";
+}
+
+function postRecentLinksToNativeWidget(sourceLinks: LinkType[]) {
+  if (
+    typeof window === "undefined" ||
+    typeof window.ReactNativeWebView?.postMessage !== "function"
+  ) {
+    return;
+  }
+
+  const links = sortLinksByCreatedAtDesc(sourceLinks)
+    .slice(0, 3)
+    .map((link) => ({
+      id: link.id,
+      title: getWidgetLinkTitle(link),
+    }));
+
+  window.ReactNativeWebView.postMessage(
+    JSON.stringify({
+      type: WIDGET_RECENT_LINKS_MESSAGE_TYPE,
+      links,
+    }),
+  );
 }
 
 export default function LinksClient() {
@@ -231,6 +274,14 @@ export default function LinksClient() {
       router.replace("/links", { scroll: false });
     }
   }, [currentFolder, folderParam, folders.length, router]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    postRecentLinksToNativeWidget(links);
+  }, [links, loading]);
 
   useEffect(() => {
     try {
