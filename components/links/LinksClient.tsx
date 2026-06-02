@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AddLinkFab from "@/components/link/AddLinkFab";
 import AddLinkModal from "@/components/link/AddLinkModal";
@@ -83,6 +83,7 @@ export default function LinksClient() {
   const querySharedUrl = searchParams.get("sharedUrl");
   const isFavoritesFilter = filterParam === "favorites";
   const isExternalShareEntry = sourceParam === "external-share";
+  const shouldOpenAddFromQuery = searchParams.get("openAdd") === "1";
 
   const renameInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -196,6 +197,18 @@ export default function LinksClient() {
   const allFoldersExpanded =
     allFolderGroupIds.length > 0 && allFolderGroupIds.every((id) => expandedFolderIds.has(id));
 
+  const clearOpenAddQuery = useCallback(() => {
+    if (!searchParams.has("openAdd")) {
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete("openAdd");
+
+    const nextQuery = nextSearchParams.toString();
+    router.replace(nextQuery ? `/links?${nextQuery}` : "/links", { scroll: false });
+  }, [router, searchParams]);
+
   useEffect(() => {
     if (!sharedUrl && !sharedText) {
       return;
@@ -203,6 +216,15 @@ export default function LinksClient() {
 
     setAddOpen(true);
   }, [sharedText, sharedUrl]);
+
+  useEffect(() => {
+    if (!shouldOpenAddFromQuery) {
+      return;
+    }
+
+    setAddOpen(true);
+    clearOpenAddQuery();
+  }, [clearOpenAddQuery, shouldOpenAddFromQuery]);
 
   useEffect(() => {
     if (folderParam && folders.length > 0 && !currentFolder) {
@@ -422,6 +444,7 @@ export default function LinksClient() {
   }
 
   function handleCloseAddLink() {
+    clearOpenAddQuery();
     clearSharedEntry();
     setAddOpen(false);
   }
