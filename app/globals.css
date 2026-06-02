@@ -24,11 +24,11 @@
   }
 
   html[data-font-size="medium"] {
-    --linkko-font-scale: 1.07;
+    --linkko-font-scale: 1.15;
   }
 
   html[data-font-size="large"] {
-    --linkko-font-scale: 1.15;
+    --linkko-font-scale: 1.3;
   }
 
   html {
