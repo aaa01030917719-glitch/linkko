@@ -127,6 +127,7 @@ export default function LinksClient() {
   const isFavoritesFilter = filterParam === "favorites";
   const isExternalShareEntry = sourceParam === "external-share";
   const shouldOpenAddFromQuery = searchParams.get("openAdd") === "1";
+  const shouldRefreshWidgetFromQuery = searchParams.get("widgetRefresh") === "1";
 
   const renameInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -252,6 +253,18 @@ export default function LinksClient() {
     router.replace(nextQuery ? `/links?${nextQuery}` : "/links", { scroll: false });
   }, [router, searchParams]);
 
+  const clearWidgetRefreshQuery = useCallback(() => {
+    if (!searchParams.has("widgetRefresh")) {
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete("widgetRefresh");
+
+    const nextQuery = nextSearchParams.toString();
+    router.replace(nextQuery ? `/links?${nextQuery}` : "/links", { scroll: false });
+  }, [router, searchParams]);
+
   useEffect(() => {
     if (!sharedUrl && !sharedText) {
       return;
@@ -274,6 +287,19 @@ export default function LinksClient() {
       router.replace("/links", { scroll: false });
     }
   }, [currentFolder, folderParam, folders.length, router]);
+
+  useEffect(() => {
+    if (!shouldRefreshWidgetFromQuery) {
+      return;
+    }
+
+    const refreshWidgetLinks = async () => {
+      await refetchLinks();
+      clearWidgetRefreshQuery();
+    };
+
+    void refreshWidgetLinks();
+  }, [clearWidgetRefreshQuery, refetchLinks, shouldRefreshWidgetFromQuery]);
 
   useEffect(() => {
     if (loading) {
