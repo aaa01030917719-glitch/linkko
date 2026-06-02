@@ -106,6 +106,7 @@ function postRecentLinksToNativeWidget(sourceLinks: LinkType[]) {
     .map((link) => ({
       id: link.id,
       title: getWidgetLinkTitle(link),
+      url: getLinkTargetValue(link),
     }));
 
   window.ReactNativeWebView.postMessage(
