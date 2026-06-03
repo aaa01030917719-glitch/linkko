@@ -102,7 +102,7 @@ function postRecentLinksToNativeWidget(sourceLinks: LinkType[]) {
   }
 
   const links = sortLinksByCreatedAtDesc(sourceLinks)
-    .slice(0, 8)
+    .slice(0, 24)
     .map((link) => ({
       id: link.id,
       title: getWidgetLinkTitle(link),
