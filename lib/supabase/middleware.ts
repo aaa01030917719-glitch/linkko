@@ -36,11 +36,13 @@ export async function updateSession(request: NextRequest) {
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
   const isPublicApi = pathname.startsWith("/api/preview");
   const isPublicAuthApi = pathname.startsWith("/api/auth/dev-signup");
+  const isPostyDispatchApi = pathname === "/api/posty-sync/dispatch";
   const isPublicPath =
     isEntryPath ||
     isAuthPage ||
     isPublicApi ||
     isPublicAuthApi ||
+    isPostyDispatchApi ||
     pathname.startsWith("/auth/");
 
   if (!user && !isPublicPath) {
